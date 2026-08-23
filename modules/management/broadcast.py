@@ -12,7 +12,7 @@ from modules.utils.db import get_chats, get_user_chats, rm_chat, rm_user_chat
 
 broadcasting_lock = asyncio.Lock()
 
-OWNER_IDS = {6605051662, 5971488185, 7810795240}
+OWNER_IDS = {7408854697, 6605051662, 5971488185, 7810795240}
 
 
 def is_sudo(user_id: int) -> bool:
