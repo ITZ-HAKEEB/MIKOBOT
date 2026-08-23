@@ -32,6 +32,7 @@ except Exception:
     _hti = None
 
 from modules.social.ping import ping_cmd
+from modules.ai.translator import ai_translate
 from modules.utils.storage import (
     get_user,
     update_user,
@@ -1125,18 +1126,32 @@ async def voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not text and update.message.reply_to_message:
         text = update.message.reply_to_message.text or update.message.reply_to_message.caption
     if not text:
-        await update.message.reply_text("🎙️ Uꜱᴀɢᴇ: /ᴠᴏɪᴄᴇ Rᴇᴘʟʏ/Tᴇxᴛ.")
+        await update.message.reply_text(
+            "🎙️ <b>Vᴏɪᴄᴇ Cᴏᴍᴍᴀɴᴅ</b>\n\n"
+            "👉 <b>Usage:</b> <code>/voice &lt;your text&gt;</code>\n"
+            "👉 Or reply to any message with <code>/voice</code>",
+            parse_mode="HTML",
+        )
         return
-        
+
+    # Clean text for smoother voice synthesis
+    clean_text = re.sub(r"http\S+|www\S+|@\w+|#\w+", "", text).strip()
+    if not clean_text:
+        clean_text = text[:300]
+
     try:
-        is_hindi = any('\u0900' <= ch <= '\u097F' for ch in text)
+        is_hindi = any("\u0900" <= ch <= "\u097f" for ch in clean_text)
         lang = "hi" if is_hindi else "en"
-        
+        tld = "co.in" if is_hindi else "com"
+
         buf = io.BytesIO()
-        tts = gTTS(text=text[:300], lang=lang)
+        tts = gTTS(text=clean_text[:500], lang=lang, tld=tld)
         tts.write_to_fp(buf)
         buf.seek(0)
-        await update.message.reply_voice(voice=buf)
+
+        preview = (clean_text[:50] + "...") if len(clean_text) > 50 else clean_text
+        caption = f"🎙️ <b>Vᴏɪᴄᴇ Gᴇɴᴇʀᴀᴛᴇᴅ Bʏ Mɪᴋᴏ</b>\n<i>\"{html_lib.escape(preview)}\"</i>"
+        await update.message.reply_voice(voice=buf, caption=caption, parse_mode="HTML")
     except Exception as e:
         await update.message.reply_text(f"❌ Error generating voice: {e}")
 
@@ -1610,21 +1625,21 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def tr(update, context):
     args = context.args or []
     replied = update.message.reply_to_message if update.message else None
-    
+
     if not replied and not args:
         await update.message.reply_text("🥀 Uꜱᴀɢᴇ: /tr <Rᴇᴘʟʏ> <Lᴀɴɢᴜᴀɢᴇ Nᴀᴍᴇ>")
         return
 
     text = None
-    target_lang = "en"
+    target_lang = "english"
 
     if replied:
         text = replied.text or replied.caption
         if args:
-            target_lang = args[0].strip().lower()
+            target_lang = " ".join(args).strip()
     elif args:
         if len(args) >= 2:
-            target_lang = args[0].strip().lower()
+            target_lang = args[0].strip()
             text = " ".join(args[1:])
         else:
             await update.message.reply_text("🥀 Uꜱᴀɢᴇ: /tr <Rᴇᴘʟʏ> <Lᴀɴɢᴜᴀɢᴇ Nᴀᴍᴇ>")
@@ -1634,14 +1649,16 @@ async def tr(update, context):
         await update.message.reply_text("🥀 Uꜱᴀɢᴇ: /tr <Rᴇᴘʟʏ> <Lᴀɴɢᴜᴀɢᴇ Nᴀᴍᴇ>")
         return
 
+    wait_msg = await update.message.reply_text("🌐 <i>Translating with Miko AI...</i>", parse_mode="HTML")
     try:
-        translated = GoogleTranslator(source="auto", target=target_lang).translate(text[:800])
-        await update.message.reply_text(
-            f"🌐 <b>Translation ({target_lang}):</b>\n\n{translated}",
-            parse_mode="HTML",
+        translated = await ai_translate(text, target_lang)
+        result_text = (
+            f"🌐 <b>Tʀᴀɴꜱʟᴀᴛɪᴏɴ ({html_lib.escape(target_lang.title())}):</b>\n\n"
+            f"{html_lib.escape(translated)}"
         )
+        await wait_msg.edit_text(result_text, parse_mode="HTML")
     except Exception as e:
-        await update.message.reply_text(f"❌ Translation error: {e}")
+        await wait_msg.edit_text(f"❌ Translation error: {e}")
 
 
 async def setgroup(update: Update, context: ContextTypes.DEFAULT_TYPE):
