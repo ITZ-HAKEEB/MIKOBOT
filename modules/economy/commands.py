@@ -162,6 +162,7 @@ async def bal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     username = user.username or user.first_name or "User"
     display_name = user.first_name or username
     ud = get_user(user.id, username, display_name)
+    toprich_rank = global_rank(user.id, "balance")
     kill_rank = global_rank(user.id, "kills")
     raw_name = ud.get("display_name") or user.first_name or username
     name_display = _styled_name(raw_name)
@@ -170,7 +171,7 @@ async def bal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     block = (
         f"👤 <b>Nᴀᴍᴇ:</b> {name_display}\n"
         f"💰 <b>Bᴀʟᴀɴᴄᴇ:</b> ${ud['balance']}\n"
-        f"🏆 <b>Gʟᴏʙᴀʟ Rᴀɴᴋ:</b> {ud['rank']}\n"
+        f"🏆 <b>Gʟᴏʙᴀʟ Rᴀɴᴋ:</b> {toprich_rank}\n"
         f"{status_icon} <b>Sᴛᴀᴛᴜꜱ:</b> {status}\n"
         f"⚔️ <b>Kɪʟʟꜱ:</b> {ud['kills']} (#{kill_rank})\n"
         f"🟤 <b>Lᴇᴠᴇʟ {ud['level']}:</b> {ud['xp']}/{ud['xp_max']}"
