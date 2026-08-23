@@ -16,6 +16,7 @@ BOT_COMMANDS = [
     BotCommand("mypowers", "Check Your Active Powers"),
     BotCommand("mp", "Check Your Active Powers"),
     BotCommand("daily", "Claim Free Daily Cash"),
+    BotCommand("task", "Check Your Daily Tasks"),
     BotCommand("ludo", "Play Ludo Game"),
     BotCommand("claim", "Claim Group Reward"),
     BotCommand("coupons", "Know About Coupon Commands"),

@@ -335,22 +335,23 @@ async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
     reward = 5000 if ud.get("premium") else 2000
     xp_reward = 200 if ud.get("premium") else 50
-    gem_reward = 1.0 if ud.get("premium") else 0.5
     update_user(
         user.id,
         balance=ud["balance"] + reward,
-        gems=round(ud.get("gems", 0) + gem_reward, 2),
         last_daily=now.isoformat(),
         status="alive",
     )
     add_xp(user.id, xp_reward)
-    await update.message.reply_text(
-        f"🎁 ʏᴏᴜ ᴄʟᴀɪᴍᴇᴅ ʏᴏᴜʀ ᴅᴀɪʟʏ ʀᴇᴡᴀʀᴅ!\n"
-        f"💰 +${reward}\n"
+
+    msg = (
+        "🎁 Yᴏᴜ Rᴇᴄᴇɪᴠᴇᴅ:\n"
+        f"💰 ${reward}\n"
         f"⭐ +{xp_reward} XP\n"
-        f"💎 +{gem_reward:.2f} ɢᴇᴍꜱ\n"
-        f"ɴᴇᴡ ʙᴀʟᴀɴᴄᴇ: ${ud['balance'] + reward}"
+        "🔥 Sᴛʀᴇᴀᴋ: 1/1\n\n"
+        "💓 Uᴘɢʀᴀᴅᴇ Tᴏ Pʀᴇᴍɪᴜᴍ Fᴏʀ Hɪɢʜᴇʀ Rᴇᴡᴀʀᴅꜱ & Sᴋɪᴘ Vᴇʀɪꜰɪᴄᴀᴛɪᴏɴ → /pay\n\n"
+        "❕ Cʜᴇᴄᴋ Yᴏᴜʀ Dᴀɪʟʏ Tᴀꜱᴋꜱ Uꜱɪɴɢ: /task"
     )
+    await update.message.reply_text(msg)
 
 
 async def wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -549,7 +550,9 @@ async def rob_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-    gained = int(amount * 0.90)
+    # Track daily task rob progress
+    task_data = get_user_daily_task(rd)
+    task_data["rob_progress"] = min(task_data.get("target_robs", 18), task_data.get("rob_progress", 0) + 1)
 
     update_user(target.id, balance=td.get("balance", 0) - amount)
     update_user(
@@ -557,6 +560,7 @@ async def rob_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         balance=rd.get("balance", 0) + gained,
         daily_robs=rd.get("daily_robs", 0) + 1,
         robs=rd.get("robs", 0) + 1,
+        daily_task=task_data,
     )
 
     a_name = rd.get("display_name") or getattr(robber, "full_name", None) or robber.first_name or "User"
@@ -810,6 +814,75 @@ async def toprob(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text, reply_markup=keyboard, parse_mode="HTML")
 
 
+def get_user_daily_task(ud: dict) -> dict:
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    task_data = ud.get("daily_task") or {}
+    if not isinstance(task_data, dict) or task_data.get("date") != today_str:
+        task_data = {
+            "date": today_str,
+            "target_games": 2,
+            "target_robs": 18,
+            "game_progress": 0,
+            "rob_progress": 0,
+            "claimed": False,
+            "reward_money": 14792,
+        }
+    return task_data
+
+
+async def task_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    ud = get_user(user.id, user.username or user.first_name or "User", user.first_name)
+    raw_name = ud.get("display_name") or user.first_name or user.username or "User"
+
+    task_data = get_user_daily_task(ud)
+    target_games = task_data.get("target_games", 2)
+    target_robs = task_data.get("target_robs", 18)
+    game_prog = task_data.get("game_progress", 0)
+    rob_prog = task_data.get("rob_progress", 0)
+    reward_money = task_data.get("reward_money", 14792)
+    gem_parts = ud.get("gem_parts", 0)
+
+    # Check if completed and claimable
+    if game_prog >= target_games and rob_prog >= target_robs and not task_data.get("claimed"):
+        task_data["claimed"] = True
+        new_parts = gem_parts + 1
+        gems_bonus = 0.0
+        if new_parts >= 3:
+            new_parts -= 3
+            gems_bonus = 1.0
+
+        update_user(
+            user.id,
+            balance=ud["balance"] + reward_money,
+            gems=round(ud.get("gems", 0) + gems_bonus, 2),
+            gem_parts=new_parts,
+            daily_task=task_data,
+        )
+
+        bonus_str = "\n💎 <b>3/3 Pᴀʀᴛꜱ Cᴏʟʟᴇᴄᴛᴇᴅ! +1 Fᴜʟʟ Gᴇᴍ 💎 Aᴡᴀʀᴅᴇᴅ!</b>" if gems_bonus > 0 else ""
+        await update.message.reply_text(
+            f"🎉 <b>Cᴏɴɢʀᴀᴛᴜʟᴀᴛɪᴏɴꜱ {raw_name}!</b>\n"
+            f"🎁 ʏᴏᴜ ᴄᴏᴍᴘʟᴇᴛᴇᴅ ʏᴏᴜʀ ᴅᴀɪʟʏ ᴛᴀꜱᴋ!\n\n"
+            f"💰 +${reward_money:,}\n"
+            f"🧩 +1 Gᴇᴍ Pᴀʀᴛ ({new_parts}/3){bonus_str}\n"
+            f"🏦 Nᴇᴡ Bᴀʟᴀɴᴄᴇ: ${ud['balance'] + reward_money:,}",
+            parse_mode="HTML",
+        )
+        return
+
+    text = (
+        f"📅 {raw_name} ࿐'ꜱ Dᴀɪʟʏ Tᴀꜱᴋ\n\n"
+        f"🎯 Wɪɴ ʀᴏᴜʟᴇᴛᴛᴇ 2 ᴛɪᴍᴇꜱ (2K+ ʙᴇᴛ, ᴍɪɴ 4 ᴘʟᴀʏᴇʀꜱ) ᴀɴᴅ ʀᴏʙ 18 ᴘʟᴀʏᴇʀꜱ\n\n"
+        f"📊 ᴘʀᴏɢʀᴇꜱꜱ:\n"
+        f"   🎮 ɢᴀᴍᴇꜱ: {game_prog}/{target_games}\n"
+        f"   🥷 ʀᴏʙꜱ: {rob_prog}/{target_robs}\n\n"
+        f"🎁 ʀᴇᴡᴀʀᴅ: 1 🧩 ɢᴇᴍ ᴘᴀʀᴛ + {reward_money} 💰\n"
+        f"(📊 {gem_parts}/3 ᴘᴀʀᴛꜱ ᴄᴏʟʟᴇᴄᴛᴇᴅ)"
+    )
+    await update.message.reply_text(text)
+
+
 HANDLERS = {
     "start": start,
     "bal": bal,
@@ -817,6 +890,8 @@ HANDLERS = {
     "fgems": fgems,
     "id": cmd_id,
     "daily": daily,
+    "task": task_cmd,
+    "tasks": task_cmd,
     "wallet": wallet,
     "protect": protect_cmd,
     "kill": kill_cmd,

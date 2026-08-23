@@ -188,7 +188,16 @@ async def cmd_bid(update: Update, context: ContextTypes.DEFAULT_TYPE):
             winner_name = game["player_names"][winner_id]
             prize = game["total_pool"]
             w_ud = get_user(winner_id)
-            update_user(winner_id, balance=w_ud["balance"] + prize)
+
+            from modules.economy.commands import get_user_daily_task
+            w_task = get_user_daily_task(w_ud)
+            if game.get("entry_fee", 0) >= 2000 and game.get("max_players", 0) >= 4:
+                w_task["game_progress"] = min(w_task.get("target_games", 2), w_task.get("game_progress", 0) + 1)
+
+            from modules.utils.storage import record_game_stat
+            record_game_stat(winner_id, "roulette", won_amount=prize, lost_amount=game["entry_fee"], is_win=True)
+
+            update_user(winner_id, balance=w_ud["balance"] + prize, daily_task=w_task)
             add_xp(winner_id, 50)
             del USER_ROULETTE_MAP[winner_id]
             del ROULETTE_GAMES[chat_id]
