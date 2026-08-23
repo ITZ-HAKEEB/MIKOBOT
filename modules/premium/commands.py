@@ -194,7 +194,7 @@ async def fpay(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_invoice(
             chat_id=chat_id,
             title="miko premium access",
-            description=f"PAY {stars_amount} STARS TO BUY {days_count} DAYS MIKO PREMIUM ACCESS IN PROVIDED USER ID.",
+            description=f"Pᴀʏ {stars_amount} Sᴛᴀʀꜱ Tᴏ Bᴜʏ {days_count} Dᴀʏꜱ Mɪᴋᴏ Pʀᴇᴍɪᴜᴍ Aᴄᴄᴇꜱꜱ Iɴ Pʀᴏᴠɪᴅᴇᴅ Uꜱᴇʀ ID.",
             payload=f"fpay_{target_uid}_{plan_key}",
             provider_token="",  # Must be empty string for Telegram Stars (XTR)
             currency="XTR",
@@ -234,7 +234,7 @@ async def send_stars_invoice(query, context, callback_data: str):
         await context.bot.send_invoice(
             chat_id=chat_id,
             title="miko premium access",
-            description=f"PAY {plan['stars']} STARS TO BUY {plan['months'] * 30} DAYS MIKO PREMIUM ACCESS IN PROVIDED USER ID.",
+            description=f"Pᴀʏ {plan['stars']} Sᴛᴀʀꜱ Tᴏ Bᴜʏ {plan['months'] * 30} Dᴀʏꜱ Mɪᴋᴏ Pʀᴇᴍɪᴜᴍ Aᴄᴄᴇꜱꜱ Iɴ Pʀᴏᴠɪᴅᴇᴅ Uꜱᴇʀ ID.",
             payload=f"fpay_{target_uid}_{plan_key}",
             provider_token="",  # Must be empty string for Telegram Stars (XTR)
             currency="XTR",
