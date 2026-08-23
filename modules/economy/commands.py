@@ -565,6 +565,24 @@ async def revive(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_html(f"✨ {tn} Iꜱ Aʟʀᴇᴀᴅʏ Aʟɪᴠᴇ!")
         return
     cost = 500
+    now = datetime.now()
+    is_free = True
+    if ud.get("last_free_revive"):
+        try:
+            last = datetime.fromisoformat(ud["last_free_revive"])
+            if now - last < timedelta(hours=24):
+                is_free = False
+        except Exception:
+            is_free = True
+
+    if is_free:
+        update_user(user.id, last_free_revive=now.isoformat())
+        update_user(target_id, status="alive")
+        await update.message.reply_html(
+            f"👤 {_name_for(user.id, ud)} Rᴇᴠɪᴠᴇᴅ {tn}! 🎁 (Fʀᴇᴇ Dᴀɪʟʏ Rᴇᴠɪᴠᴇ)"
+        )
+        return
+
     if ud["balance"] < cost:
         await update.message.reply_text(
             f"💸 Yᴏᴜ Nᴇᴇᴅ ${cost} Tᴏ Rᴇᴠɪᴠᴇ, Bᴜᴛ Yᴏᴜ Hᴀᴠᴇ Oɴʟʏ ${ud['balance']}"
