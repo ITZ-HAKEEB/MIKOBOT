@@ -24,7 +24,7 @@ if BASE_DIR not in sys.path:
 
 import html
 from modules.utils.commands_list import BOT_COMMANDS
-from modules.utils.storage import get_user, update_user, add_xp
+from modules.utils.storage import get_user, update_user, add_xp, global_rank
 from modules.economy.commands import HANDLERS as ECON_HANDLERS
 from modules.games.commands import HANDLERS as GAME_HANDLERS
 from modules.social.commands import HANDLERS as SOCIAL_HANDLERS
@@ -369,11 +369,12 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user = query.from_user
         ud = get_user(user.id, user.username or "User", user.first_name or "User")
         from modules.utils.commands_list import ADVAY_NAME
+        toprich_rank = global_rank(user.id, "balance")
         stats_block = (
             "<blockquote>"
             "<b>📊 ʏᴏᴜʀ ꜱᴛᴀᴛꜱ:</b>\n"
             f"<b>💰 ʙᴀʟᴀɴᴄᴇ:</b> {ud['balance']}\n"
-            f"<b>🏆 ʀᴀɴᴋ:</b> {ud['rank']}\n"
+            f"<b>🏆 ʀᴀɴᴋ:</b> {toprich_rank}\n"
             f"<b>💎 ɢᴇᴍꜱ:</b> {ud['gems']:.2f}\n"
             f"<b>🔪 ᴋɪʟʟꜱ:</b> {ud['kills']}"
             "</blockquote>"

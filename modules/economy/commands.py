@@ -128,11 +128,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
+    toprich_rank = global_rank(user.id, "balance")
     stats_block = (
         "<blockquote>"
         "<b>📊 ʏᴏᴜʀ ꜱᴛᴀᴛꜱ:</b>\n"
         f"<b>💰 ʙᴀʟᴀɴᴄᴇ:</b> {ud['balance']}\n"
-        f"<b>🏆 ʀᴀɴᴋ:</b> {ud['rank']}\n"
+        f"<b>🏆 ʀᴀɴᴋ:</b> {toprich_rank}\n"
         f"<b>💎 ɢᴇᴍꜱ:</b> {ud['gems']:.2f}\n"
         f"<b>🔪 ᴋɪʟʟꜱ:</b> {ud['kills']}"
         "</blockquote>"
