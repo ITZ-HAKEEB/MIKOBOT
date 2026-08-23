@@ -12,6 +12,7 @@ from telegram.ext import (
     MessageHandler,
     ChatMemberHandler,
     InlineQueryHandler,
+    PreCheckoutQueryHandler,
     filters,
 )
 
@@ -28,7 +29,12 @@ from modules.utils.storage import get_user, update_user, add_xp, global_rank
 from modules.economy.commands import HANDLERS as ECON_HANDLERS
 from modules.games.commands import HANDLERS as GAME_HANDLERS
 from modules.social.commands import HANDLERS as SOCIAL_HANDLERS
-from modules.premium.commands import HANDLERS as PREM_HANDLERS
+from modules.premium.commands import (
+    HANDLERS as PREM_HANDLERS,
+    pre_checkout_callback,
+    successful_payment_callback,
+    send_stars_invoice,
+)
 from modules.management.commands import MANAGEMENT_COMMANDS, handle_prefix_command
 from modules.ai.chatbot import dm_chatbot_handler
 from modules.social.whisper import inline_whisper_handler, whisper_callback_handler
@@ -575,8 +581,10 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Connect your payment gateway (UPI / Stripe / Stars).\n"
             "Placeholder: 50 Stars → $5000 in-game balance."
         )
-    else:
+    if data.startswith("buy_stars_"):
+        await send_stars_invoice(query, context, data)
         return
+
     try:
         await query.edit_message_text(text=text, parse_mode="HTML", disable_web_page_preview=True)
     except Exception:
@@ -616,6 +624,7 @@ async def post_init(app):
             f"🆔 <b>ID:</b> <code>{bot_user.id}</code>\n"
             "🍃 <b>Database:</b> <code>MongoDB + Redis Online</code>\n"
             "💳 <b>Razorpay Gateway:</b> <code>Active & Verified</code>\n"
+            "⭐ <b>Telegram Stars Payments:</b> <code>Active & Verified</code>\n"
             "✨ <b>Status:</b> Ready and serving users!"
         )
         await send_log_message(app.bot, log_text)
@@ -643,6 +652,8 @@ def main():
     for cmd_name, fn in handlers.items():
         app.add_handler(CommandHandler(cmd_name, fn))
 
+    app.add_handler(PreCheckoutQueryHandler(pre_checkout_callback))
+    app.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_callback))
     app.add_handler(MessageHandler(filters.ALL, track_chat_activity), group=-1)
     app.add_handler(ChatMemberHandler(on_my_chat_member, ChatMemberHandler.MY_CHAT_MEMBER))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_members))

@@ -2,7 +2,7 @@ import os
 import json
 from datetime import datetime
 from typing import Dict, Any
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, LabeledPrice
 from telegram.ext import ContextTypes
 
 from modules.utils.storage import get_user, update_user, get_group, update_group, POWERS_CATALOG
@@ -139,24 +139,121 @@ async def pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+STARS_PLANS = {
+    "stars_1_month": {"title": "1 Month VIP Premium", "stars": 50, "gems": 1.0, "months": 1},
+    "stars_2_months": {"title": "2 Months VIP Premium", "stars": 100, "gems": 2.0, "months": 2},
+    "stars_3_months": {"title": "3 Months VIP Premium", "stars": 130, "gems": 3.0, "months": 3},
+    "stars_6_months": {"title": "6 Months VIP Premium", "stars": 160, "gems": 6.0, "months": 6},
+    "stars_12_months": {"title": "12 Months VIP Premium", "stars": 250, "gems": 12.0, "months": 12},
+}
+
+
 async def fpay(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat and update.effective_chat.type != "private":
         await update.message.reply_text("⚠️ Tʜɪꜱ Cᴏᴍᴍᴀɴᴅ Oɴʟʏ Wᴏʀᴋꜱ Iɴ Tʜᴇ ᴍɪᴋᴏ Bᴏᴛ'ꜱ Dᴍ.")
         return
 
+    user = update.effective_user
+    uid = user.id if user else 0
+
     text = (
-        "⭐ <b>ᴍɪᴋᴏ ᴘʀᴇᴍɪᴜᴍ (ᴛᴇʟᴇɢʀᴀᴍ ꜱᴛᴀʀꜱ)</b>\n\n"
-        "If you are outside India, you can purchase Miko Premium using Telegram Stars.\n\n"
-        "🌟 <b>1 Month Premium:</b> 50 ⭐\n"
-        "🌟 <b>3 Months Premium:</b> 120 ⭐\n"
-        "🌟 <b>1 Year Premium:</b> 400 ⭐\n\n"
-        "💬 Contact @Developer_World_Advay or @advaydev to activate instantly!"
+        "⭐ <b>ᴍɪᴋᴏ ᴘʀᴇᴍɪᴜᴍ (ᴛᴇʟᴇɢʀᴀᴍ ꜱᴛᴀʀꜱ & ᴜᴘɪ)</b>\n\n"
+        "🌐 <b>Iɴᴛᴇʀɴᴀᴛɪᴏɴᴀʟ Uꜱᴇʀꜱ:</b> Pᴜʀᴄʜᴀꜱᴇ VIP ɪɴꜱᴛᴀɴᴛʟʏ ᴜꜱɪɴɢ <b>Tᴇʟᴇɢʀᴀᴍ Sᴛᴀʀꜱ ⭐</b> (Aᴘᴘʟᴇ Pᴀʏ, Gᴏᴏɢʟᴇ Pᴀʏ, ᴏʀ Cᴀʀᴅꜱ).\n\n"
+        "🇮🇳 <b>Iɴᴅɪᴀɴ Uꜱᴇʀꜱ:</b> Yᴏᴜ ᴄᴀɴ ᴀʟꜱᴏ ᴘᴀʏ ᴠɪᴀ <b>UPI / Rᴀᴢᴏʀᴘᴀʏ 💳</b> ᴜꜱɪɴɢ ᴛʜᴇ Mini Aᴘᴘ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ!\n\n"
+        "💎 <b>Sᴛᴀʀꜱ Pʀɪᴄɪɴɢ Pʟᴀɴꜱ:</b>\n"
+        "• 🌟 <b>1 Month:</b> 50 ⭐ <i>(+1 💎 Free Gem)</i>\n"
+        "• 🌟 <b>2 Months:</b> 100 ⭐ <i>(+2 💎 Free Gems)</i>\n"
+        "• 🌟 <b>3 Months:</b> 130 ⭐ <i>(+3 💎 Free Gems)</i>\n"
+        "• 🌟 <b>6 Months:</b> 160 ⭐ <i>(+6 💎 Free Gems)</i>\n"
+        "• 🌟 <b>12 Months:</b> 250 ⭐ <i>(+12 💎 Free Gems - Best Value)</i>\n\n"
+        "👇 <b>Select a plan below to pay with Stars:</b>"
     )
+
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("⭐ BUY WITH STARS", url="https://t.me/advaydev")],
-        [InlineKeyboardButton("💓 FEATURES", url="https://t.me/i_mikoo/11")],
+        [
+            InlineKeyboardButton("⭐ 1 Month (50 ⭐)", callback_data="buy_stars_1_month"),
+            InlineKeyboardButton("⭐ 2 Months (100 ⭐)", callback_data="buy_stars_2_months"),
+        ],
+        [
+            InlineKeyboardButton("⭐ 3 Months (130 ⭐)", callback_data="buy_stars_3_months"),
+            InlineKeyboardButton("⭐ 6 Months (160 ⭐)", callback_data="buy_stars_6_months"),
+        ],
+        [
+            InlineKeyboardButton("⭐ 12 Months (250 ⭐) 🏆", callback_data="buy_stars_12_months"),
+        ],
+        [
+            InlineKeyboardButton("💳 PAY WITH UPI / RAZORPAY (₹)", web_app=WebAppInfo(url=f"https://mike-payment.vercel.app/checkout.html?user_id={uid}")),
+        ],
+        [
+            InlineKeyboardButton("💓 FEATURES", url="https://t.me/i_mikoo/11"),
+            InlineKeyboardButton("📜 TERMS & REFUND", web_app=WebAppInfo(url="https://mike-payment.vercel.app/refund.html")),
+        ],
     ])
+
     await update.message.reply_text(text, reply_markup=keyboard, parse_mode="HTML")
+
+
+async def send_stars_invoice(query, context, plan_key: str):
+    """Sends native Telegram Stars invoice modal"""
+    if plan_key not in STARS_PLANS:
+        await query.answer("⚠️ Invalid plan selected!", show_alert=True)
+        return
+
+    plan = STARS_PLANS[plan_key]
+    chat_id = query.message.chat_id
+
+    try:
+        await context.bot.send_invoice(
+            chat_id=chat_id,
+            title=f"👑 Miko {plan['title']}",
+            description=f"Instant VIP Premium activation for {plan['months']} month(s) + {int(plan['gems'])} Free Bonus Gem(s)!",
+            payload=plan_key,
+            provider_token="",  # Must be empty string for Telegram Stars (XTR)
+            currency="XTR",
+            prices=[LabeledPrice(label=plan["title"], amount=plan["stars"])],
+            photo_url="https://i.ibb.co/SwtfTqpP/photo-2026-08-24-03-31-04.jpg",
+            photo_width=512,
+            photo_height=512,
+        )
+        await query.answer()
+    except Exception as e:
+        print(f"Error sending Stars invoice: {e}")
+        await query.answer("⚠️ Could not open Stars checkout invoice. Please try again.", show_alert=True)
+
+
+async def pre_checkout_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Answer Telegram Stars pre-checkout query"""
+    query = update.pre_checkout_query
+    if query.invoice_payload.startswith("stars_"):
+        await query.answer(ok=True)
+    else:
+        await query.answer(ok=False, error_message="Payment verification error. Please contact support.")
+
+
+async def successful_payment_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Triggered automatically when payment via Telegram Stars succeeds"""
+    payment = update.message.successful_payment
+    user = update.effective_user
+    payload = payment.invoice_payload
+    uid = user.id
+
+    plan = STARS_PLANS.get(payload, {"title": "VIP Premium", "gems": 1.0, "months": 1})
+    free_gems = plan.get("gems", 1.0)
+
+    ud = get_user(uid)
+    new_gems = round(ud.get("gems", 0.0) + free_gems, 2)
+    update_user(uid, premium=True, gems=new_gems)
+
+    text = (
+        f"🎉 <b>ᴛʜᴀɴᴋ ʏᴏᴜ ꜰᴏʀ ʏᴏᴜʀ ᴘᴀʏᴍᴇɴᴛ!</b>\n\n"
+        f"👑 <b>Plan Activated:</b> {plan['title']}\n"
+        f"⭐ <b>Stars Paid:</b> {payment.total_amount} ⭐\n"
+        f"💎 <b>Free Bonus Gems:</b> +{int(free_gems)} 💎\n"
+        f"✨ <b>Total Gems Balance:</b> {new_gems} 💎\n\n"
+        f"🌟 <i>Your VIP perks are now active across all groups! Check with /pfp or /bal.</i>"
+    )
+
+    await update.message.reply_text(text, parse_mode="HTML")
 
 
 async def claim(update, context):
