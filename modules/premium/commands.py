@@ -123,7 +123,7 @@ async def pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("💳 PAY NOW", web_app=WebAppInfo(url=f"https://mike-payment.vercel.app/checkout.html?user_id={uid}")),
-            InlineKeyboardButton("💰 ADD FUNDS", web_app=WebAppInfo(url=f"https://mike-payment.vercel.app/checkout.html?plan=1_month&user_id={uid}")),
+            InlineKeyboardButton("📲 DIRECT UPI / QR", url="https://razorpay.me/@nishkarshkumar"),
         ],
         [
             InlineKeyboardButton("💓 FEATURES", url="https://t.me/i_mikoo/11"),
@@ -137,15 +137,6 @@ async def pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML",
         disable_web_page_preview=True,
     )
-
-STARS_PLANS = {
-    "stars_1_month": {"title": "1 Month VIP Premium", "stars": 10, "gems": 1.0, "months": 1},
-    "stars_2_months": {"title": "2 Months VIP Premium", "stars": 15, "gems": 2.0, "months": 2},
-    "stars_3_months": {"title": "3 Months VIP Premium", "stars": 20, "gems": 3.0, "months": 3},
-    "stars_6_months": {"title": "6 Months VIP Premium", "stars": 40, "gems": 6.0, "months": 6},
-    "stars_12_months": {"title": "12 Months VIP Premium", "stars": 50, "gems": 12.0, "months": 12},
-}
-
 
 STARS_PLANS = {
     "stars_1_month": {"title": "1 Month VIP Premium", "stars": 10, "gems": 1.0, "months": 1},
