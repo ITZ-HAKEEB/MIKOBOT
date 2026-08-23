@@ -348,19 +348,25 @@ def db_load_group(chat_id: int) -> Optional[Dict[str, Any]]:
     return None
 
 
-def db_save_group(chat_id: int, gdata: Dict[str, Any]) -> None:
-    cid = str(chat_id)
-    serialized = json.dumps(gdata)
-    if _redis_client:
-        try:
-            _redis_client.set(f"miko:group:{cid}", serialized, ex=86400)
-        except Exception:
-            pass
+def _async_mongo_save_group(cid: str, doc: dict):
     if _mongo_db is not None:
         try:
-            doc = dict(gdata)
             _mongo_db.groups.update_one({"_id": cid}, {"$set": doc}, upsert=True)
         except Exception:
             pass
+
+
+def db_save_group(chat_id: int, gdata: Dict[str, Any]) -> None:
+    cid = str(chat_id)
+    serialized = json.dumps(gdata)
+    # 1. Save to Redis immediately (< 0.5ms)
+    if _redis_client:
+        try:
+            _redis_client.set(f"miko:group:{cid}", serialized, ex=86400 * 7)
+        except Exception:
+            pass
+    # 2. Save to Mongo in background
+    doc = dict(gdata)
+    _db_pool.submit(_async_mongo_save_group, cid, doc)
 
 
