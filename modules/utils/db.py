@@ -269,12 +269,32 @@ def warmup_redis_cache() -> None:
 
 def db_load_all_users() -> Dict[str, Dict[str, Any]]:
     res: Dict[str, Dict[str, Any]] = {}
-    if _mongo_db is not None:
+    # 1. Primary: Load all users from Redis
+    if _redis_client:
+        try:
+            keys = _redis_client.keys("miko:user:*")
+            if keys:
+                pipe = _redis_client.pipeline()
+                for k in keys:
+                    pipe.get(k)
+                values = pipe.execute()
+                for k, v in zip(keys, values):
+                    if v:
+                        uid = k.replace("miko:user:", "")
+                        res[str(uid)] = json.loads(v)
+        except Exception as e:
+            print(f"Error loading users from Redis: {e}")
+
+    # 2. Backup Fallback: If Redis is empty, load from MongoDB
+    if not res and _mongo_db is not None:
         try:
             for doc in _mongo_db.users.find({}):
                 uid = doc.pop("_id", None)
                 if uid:
                     res[str(uid)] = doc
+                    if _redis_client:
+                        _redis_client.set(f"miko:user:{uid}", json.dumps(doc))
+                        _redis_client.sadd("miko:users", str(uid))
         except Exception:
             pass
     return res

@@ -88,10 +88,18 @@ _MEM_CACHE: Dict[str, Any] = {}
 
 def load_data() -> Dict[str, Any]:
     global _MEM_CACHE
+
+    # Load all live users from Redis primary store
+    db_users = db_load_all_users()
+    if db_users:
+        _MEM_CACHE.update(db_users)
+        _MEM_CACHE = _migrate(_MEM_CACHE)
+        return _MEM_CACHE
+
     if _MEM_CACHE:
         return _MEM_CACHE
 
-    # 1. Try local data file
+    # Fallback to local file if DB unavailable
     data: Dict[str, Any] = {}
     if os.path.exists(DATA_FILE):
         try:
@@ -99,13 +107,6 @@ def load_data() -> Dict[str, Any]:
                 data = json.load(f)
         except Exception:
             data = {}
-
-    # 2. Merge with Mongo if available
-    mongo_users = db_load_all_users()
-    if mongo_users:
-        for uid, udata in mongo_users.items():
-            if uid not in data:
-                data[uid] = udata
 
     _MEM_CACHE = _migrate(data)
     return _MEM_CACHE
