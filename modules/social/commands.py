@@ -804,9 +804,9 @@ NAME_FONT_MAP: Dict[str, str] = {
 }
 
 def style_author_name(name: str) -> str:
-    """Normalize fancy unicode fonts, strip all decorative symbols/emojis/CJK marks, and apply small-cap font."""
+    """Normalize fancy unicode fonts and strip all decorative symbols/emojis/marks, keeping original clean name."""
     if not name:
-        return "Uꜱᴇʀ"
+        return "User"
 
     # Normalize mathematical/bold/italic fancy unicode fonts to basic Latin (e.g. 𝐀𝐝𝐯𝐚𝐲 -> Advay)
     norm = unicodedata.normalize("NFKD", str(name))
@@ -815,11 +815,7 @@ def style_author_name(name: str) -> str:
     cleaned = re.sub(r"[^a-zA-Z0-9\s\u0900-\u097F\u0600-\u06FF\u0400-\u04FF]", "", norm)
     cleaned = re.sub(r"\s+", " ", cleaned).strip()
 
-    if not cleaned:
-        cleaned = "User"
-
-    converted = "".join(NAME_FONT_MAP.get(c, c) for c in cleaned)
-    return converted
+    return cleaned if cleaned else "User"
 
 
 def generate_quote_sticker(
