@@ -403,7 +403,7 @@ async def couples(update: Update, context: ContextTypes.DEFAULT_TYPE):
     last_time = COUPLE_COOLDOWNS.get(chat.id)
     if last_time and (now - last_time) < timedelta(minutes=5):
         await update.message.reply_text(
-            "⏳ A CᴏᴜᴘʟE Hᴀꜱ Bᴇᴇɴ Dᴇᴄʟᴀʀᴇᴅ Rᴇᴄᴇɴᴛʟʏ.\n"
+            "⏳ A Cᴏᴜᴘʟᴇ Hᴀꜱ Bᴇᴇɴ Dᴇᴄʟᴀʀᴇᴅ Rᴇᴄᴇɴᴛʟʏ.\n"
             "⏰ Tʀʏ Aꜰᴛᴇʀ 5 Mɪɴꜱ"
         )
         return
@@ -411,39 +411,65 @@ async def couples(update: Update, context: ContextTypes.DEFAULT_TYPE):
     author = update.effective_user
     replied = _reply_user(update)
 
-    from modules.utils.storage import get_all_users
+    from modules.utils.storage import get_all_users, get_group, get_user
     all_users = get_all_users()
+    grp_settings = get_group(chat.id)
 
-    if chat.id not in GROUP_ACTIVE_MEMBERS:
-        GROUP_ACTIVE_MEMBERS[chat.id] = {}
+    # Build a comprehensive candidate pool for the group
+    pool: Dict[int, str] = {}
 
-    # Register author in group active list
-    ud_a = all_users.get(str(author.id), {})
-    a_name = ud_a.get("display_name") or getattr(author, "full_name", None) or author.first_name or "User"
-    GROUP_ACTIVE_MEMBERS[chat.id][author.id] = a_name
+    # 1. Add current author
+    a_name = getattr(author, "full_name", None) or author.first_name or "User"
+    pool[author.id] = a_name
+
+    # 2. Add replied user if present
+    r_name = "User"
+    if replied and replied.id != author.id:
+        r_name = getattr(replied, "full_name", None) or replied.first_name or "User"
+        pool[replied.id] = r_name
+
+    # 3. Add members tracked in group settings
+    grp_members = grp_settings.get("members") or []
+    for mid in grp_members:
+        if mid not in pool:
+            ud = all_users.get(str(mid)) or get_user(mid)
+            m_name = ud.get("display_name") or ud.get("username") or "User"
+            pool[mid] = m_name
+
+    # 4. Fetch group administrators dynamically from Telegram
+    try:
+        admins = await context.bot.get_chat_administrators(chat.id)
+        for admin in admins:
+            if admin.user and not admin.user.is_bot:
+                adm_id = admin.user.id
+                if adm_id not in pool:
+                    adm_name = getattr(admin.user, "full_name", None) or admin.user.first_name or "User"
+                    pool[adm_id] = adm_name
+    except Exception:
+        pass
+
+    # 5. Fallback to all stored active users in DB if pool is still small
+    if len(pool) < 2:
+        for uid_str, udata in all_users.items():
+            try:
+                uid_int = int(uid_str)
+                if uid_int not in pool and uid_int > 0:
+                    u_name = udata.get("display_name") or udata.get("username") or "User"
+                    pool[uid_int] = u_name
+            except Exception:
+                pass
 
     if replied and replied.id != author.id:
-        u1_id = author.id
-        u2_id = replied.id
-        ud_r = all_users.get(str(u2_id), {})
-        u1_name = a_name
-        u2_name = ud_r.get("display_name") or getattr(replied, "full_name", None) or replied.first_name or "User"
-        GROUP_ACTIVE_MEMBERS[chat.id][u2_id] = u2_name
+        u1_id, u1_name = author.id, pool.get(author.id, a_name)
+        u2_id, u2_name = replied.id, pool.get(replied.id, r_name)
     else:
-        group_members = GROUP_ACTIVE_MEMBERS[chat.id]
-        if len(group_members) >= 2:
-            chosen_ids = random.sample(list(group_members.keys()), 2)
-            u1_id = chosen_ids[0]
-            u2_id = chosen_ids[1]
-            u1_name = group_members[u1_id]
-            u2_name = group_members[u2_id]
+        if len(pool) >= 2:
+            chosen = random.sample(list(pool.keys()), 2)
+            u1_id, u2_id = chosen[0], chosen[1]
+            u1_name, u2_name = pool[u1_id], pool[u2_id]
         else:
-            # Need more group members
-            await update.message.reply_text(
-                "💞 Need at least 2 active group members to pick a couple!\n"
-                "Tip: reply to someone with /couples or chat in the group first."
-            )
-            return
+            u1_id, u1_name = author.id, a_name
+            u2_id, u2_name = author.id, a_name
 
     COUPLE_COOLDOWNS[chat.id] = now
 
