@@ -1649,14 +1649,11 @@ async def tr(update, context):
         await update.message.reply_text("🥀 Uꜱᴀɢᴇ: /tr <Rᴇᴘʟʏ> <Lᴀɴɢᴜᴀɢᴇ Nᴀᴍᴇ>")
         return
 
-    wait_msg = await update.message.reply_text("🌐 <i>Translating with Miko AI...</i>", parse_mode="HTML")
+    wait_msg = await update.message.reply_text("🌐 <i>Translating...</i>", parse_mode="HTML")
     try:
-        translated = await ai_translate(text, target_lang)
-        result_text = (
-            f"🌐 <b>Tʀᴀɴꜱʟᴀᴛɪᴏɴ ({html_lib.escape(target_lang.title())}):</b>\n\n"
-            f"{html_lib.escape(translated)}"
-        )
-        await wait_msg.edit_text(result_text, parse_mode="HTML")
+        translated, src_lang, tgt_lang = await ai_translate(text, target_lang)
+        result_text = f"Translated from {src_lang} to {tgt_lang}.\n\n{translated}"
+        await wait_msg.edit_text(result_text)
     except Exception as e:
         await wait_msg.edit_text(f"❌ Translation error: {e}")
 
