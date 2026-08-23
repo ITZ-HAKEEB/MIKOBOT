@@ -215,30 +215,52 @@ def db_save_user(user_id: int, udata: Dict[str, Any]) -> None:
 
 
 def warmup_redis_cache() -> None:
-    """Pre-warm Redis with all collections from MongoDB asynchronously."""
+    """Pre-warm and restore Redis cache with all data from MongoDB."""
     if not _redis_client or _mongo_db is None:
         return
     try:
-        collections = _mongo_db.list_collection_names()
         pipe = _redis_client.pipeline()
-        for coll_name in collections:
-            for doc in _mongo_db[coll_name].find({}):
-                doc_id = str(doc.pop("_id", None))
-                if not doc_id:
-                    continue
-                if coll_name == "users":
-                    pipe.set(f"miko:user:{doc_id}", json.dumps(doc), ex=86400 * 7)
-                    pipe.sadd("miko:users", doc_id)
-                elif coll_name == "chats":
-                    pipe.sadd("miko:chats", doc_id)
-                elif coll_name == "users_chats":
-                    pipe.sadd("miko:users", doc_id)
-                elif coll_name == "sudoers":
-                    pipe.sadd("miko:sudoers", doc_id)
-                else:
-                    pipe.set(f"miko:{coll_name}:{doc_id}", json.dumps(doc))
+
+        # 1. Users
+        for u in _mongo_db.users.find({}):
+            uid = str(u.pop("_id", None))
+            if uid:
+                pipe.set(f"miko:user:{uid}", json.dumps(u))
+                pipe.sadd("miko:users", uid)
+
+        # 2. Groups
+        for g in _mongo_db.groups.find({}):
+            gid = str(g.pop("_id", None))
+            if gid:
+                pipe.set(f"miko:group:{gid}", json.dumps(g))
+                pipe.sadd("miko:chats", gid)
+
+        # 3. Chats
+        for c in _mongo_db.chats.find({}):
+            cid = c.get("chat_id") or str(c.get("_id"))
+            if cid:
+                pipe.sadd("miko:chats", str(cid))
+
+        # 4. User Chats
+        for uc in _mongo_db.users_chats.find({}):
+            uid = uc.get("user_id") or str(uc.get("_id"))
+            if uid:
+                pipe.sadd("miko:users", str(uid))
+
+        # 5. Whispers
+        for w in _mongo_db.whispers.find({}):
+            wid = str(w.pop("_id", None))
+            if wid:
+                pipe.set(f"miko:whisper:{wid}", json.dumps(w), ex=86400 * 7)
+
+        # 6. Sudoers
+        for s in _mongo_db.sudoers.find({}):
+            suid = s.get("user_id") or str(s.get("_id"))
+            if suid:
+                pipe.sadd("miko:sudoers", str(suid))
+
         pipe.execute()
-        print("⚡ Redis in-memory cache pre-warmed successfully from MongoDB!")
+        print("⚡ Redis in-memory cache restored and pre-warmed successfully from MongoDB!")
     except Exception as e:
         print(f"⚠️ Redis warm-up notice: {e}")
 
