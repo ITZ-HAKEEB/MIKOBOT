@@ -10,6 +10,7 @@ from telegram.ext import (
     CallbackQueryHandler,
     MessageHandler,
     ChatMemberHandler,
+    InlineQueryHandler,
     filters,
 )
 
@@ -29,6 +30,7 @@ from modules.social.commands import HANDLERS as SOCIAL_HANDLERS
 from modules.premium.commands import HANDLERS as PREM_HANDLERS
 from modules.management.commands import MANAGEMENT_COMMANDS, handle_prefix_command
 from modules.ai.chatbot import dm_chatbot_handler
+from modules.social.whisper import inline_whisper_handler, whisper_callback_handler
 
 
 async def pfp(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -205,8 +207,13 @@ def _collect_handlers():
 
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
     data = query.data or ""
+
+    if data.startswith("wspr_"):
+        await whisper_callback_handler(update, context)
+        return
+
+    await query.answer()
 
     if data.startswith("bomb:"):
         parts = data.split(":")
@@ -593,6 +600,7 @@ def main():
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_members))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_prefix_command), group=1)
     app.add_handler(MessageHandler(filters.ChatType.PRIVATE & (filters.TEXT | filters.Sticker.ALL) & ~filters.COMMAND, dm_chatbot_handler), group=2)
+    app.add_handler(InlineQueryHandler(inline_whisper_handler))
     app.add_handler(CallbackQueryHandler(callback_handler))
 
     print("🤖 ᴍɪᴋᴏ ʙᴏᴛ ɪꜱ ʀᴜɴɴɪɴɢ...")
