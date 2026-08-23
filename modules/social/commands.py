@@ -808,31 +808,37 @@ def generate_quote_sticker(
     if not os.path.exists(font_file):
         font_file = font_bold_path if os.path.exists(font_bold_path) else None
 
-    # Big and bold font sizes for razor-sharp quote stickers
     if font_file:
-        font_name = ImageFont.truetype(font_file, 42)
-        font_text = ImageFont.truetype(font_file, 50)
+        font_name = ImageFont.truetype(font_file, 36)
+        font_text = ImageFont.truetype(font_file, 42)
     else:
         font_name = ImageFont.load_default()
         font_text = ImageFont.load_default()
 
     dummy_draw = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
 
-    words = text.split()
+    # Process newlines and word wrapping
+    raw_lines = text.split("\n")
     lines = []
-    curr = ""
-    max_line_width = 650
+    max_line_width = 540
 
-    for w in words:
-        test = curr + (" " if curr else "") + w
-        bbox = dummy_draw.textbbox((0, 0), test, font=font_text)
-        if (bbox[2] - bbox[0]) > max_line_width and curr:
+    for r_line in raw_lines:
+        words = r_line.split()
+        if not words:
+            lines.append("")
+            continue
+        curr = ""
+        for w in words:
+            test = curr + (" " if curr else "") + w
+            bbox = dummy_draw.textbbox((0, 0), test, font=font_text)
+            if (bbox[2] - bbox[0]) > max_line_width and curr:
+                lines.append(curr)
+                curr = w
+            else:
+                curr = test
+        if curr:
             lines.append(curr)
-            curr = w
-        else:
-            curr = test
-    if curr:
-        lines.append(curr)
+
     if not lines:
         lines = [text if text else "(empty)"]
 
@@ -840,7 +846,7 @@ def generate_quote_sticker(
     name_w = name_bbox[2] - name_bbox[0]
     name_h = name_bbox[3] - name_bbox[1]
 
-    line_h = 62
+    line_h = 52
     text_total_h = len(lines) * line_h
 
     content_w = name_w
@@ -848,14 +854,17 @@ def generate_quote_sticker(
         b = dummy_draw.textbbox((0, 0), l, font=font_text)
         content_w = max(content_w, b[2] - b[0])
 
-    pad_x = 44
-    pad_y = 36
-    bubble_w = max(int(content_w + pad_x * 2), 340)
-    bubble_h = int(name_h + 24 + text_total_h + pad_y * 2)
+    pad_left = 32
+    pad_right = 36
+    pad_top = 24
+    pad_bottom = 24
 
-    avatar_size = 120
-    total_w = avatar_size + 28 + bubble_w + 30
-    total_h = max(avatar_size + 30, bubble_h + 30)
+    bubble_w = max(int(content_w + pad_left + pad_right), 240)
+    bubble_h = int(name_h + 16 + text_total_h + pad_top + pad_bottom)
+
+    avatar_size = 96
+    total_w = avatar_size + 18 + bubble_w + 20
+    total_h = max(avatar_size + 20, bubble_h + 20)
 
     img = Image.new("RGBA", (int(total_w), int(total_h)), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
@@ -864,8 +873,8 @@ def generate_quote_sticker(
     text_rgb = hex_to_rgb(text_color, (255, 255, 255, 255))
     author_rgb = hex_to_rgb(author_color, (255, 121, 198, 255))
 
-    av_x = 15
-    av_y = total_h - avatar_size - 15
+    av_x = 10
+    av_y = total_h - avatar_size - 10
 
     if avatar_bytes:
         try:
@@ -889,18 +898,23 @@ def generate_quote_sticker(
             font=font_name,
         )
 
-    bx = av_x + avatar_size + 20
-    by = total_h - bubble_h - 15
-    draw.rounded_rectangle([(bx, by), (bx + bubble_w, by + bubble_h)], radius=32, fill=bg_rgb)
+    bx = av_x + avatar_size + 14
+    by = total_h - bubble_h - 10
+    draw.rounded_rectangle([(bx, by), (bx + bubble_w, by + bubble_h)], radius=24, fill=bg_rgb)
 
-    tail = [(bx + 2, by + bubble_h - 38), (bx - 16, by + bubble_h - 18), (bx + 26, by + bubble_h)]
+    # Sleek dialogue tail pointing towards the avatar
+    tail = [
+        (bx + 4, by + bubble_h - 26),
+        (bx - 12, by + bubble_h - 6),
+        (bx + 20, by + bubble_h),
+    ]
     draw.polygon(tail, fill=bg_rgb)
 
-    draw.text((bx + pad_x, by + pad_y), author_name, fill=author_rgb, font=font_name)
+    draw.text((bx + pad_left, by + pad_top), author_name, fill=author_rgb, font=font_name)
 
-    cur_y = by + pad_y + name_h + 22
+    cur_y = by + pad_top + name_h + 16
     for l in lines:
-        draw.text((bx + pad_x, cur_y), l, fill=text_rgb, font=font_text)
+        draw.text((bx + pad_left, cur_y), l, fill=text_rgb, font=font_text)
         cur_y += line_h
 
     max_dim = max(img.size)
@@ -909,7 +923,7 @@ def generate_quote_sticker(
         new_size = (max(1, int(img.size[0] * ratio)), max(1, int(img.size[1] * ratio)))
         img = img.resize(new_size, Image.Resampling.LANCZOS)
 
-    img = ImageEnhance.Sharpness(img).enhance(1.4)
+    img = ImageEnhance.Sharpness(img).enhance(1.3)
 
     buf = io.BytesIO()
     buf.name = "quote.webp"
