@@ -458,15 +458,18 @@ async def kill_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chance = 0.85 if "rampage" in (ad.get("powers") or []) else 0.65
     success = random.random() < chance
     if success:
-        loot_pct = 0.9 if "rampage" in (ad.get("powers") or []) else 1.0
-        max_loot = int(min(max(td["balance"], 50), random.randint(50, 200)) * loot_pct)
+        loot_pct = 1.2 if "rampage" in (ad.get("powers") or []) else 1.0
+        base_loot = random.randint(50, 250)
+        max_loot = int(base_loot * loot_pct)
+        victim_loss = min(td.get("balance", 0), max_loot)
+
         update_user(
             attacker.id,
-            balance=ad["balance"] + max_loot,
+            balance=ad.get("balance", 0) + max_loot,
             kills=ad.get("kills", 0) + 1,
             daily_kills=ad.get("daily_kills", 0) + 1,
         )
-        update_user(target.id, balance=td["balance"] - max_loot, status="dead")
+        update_user(target.id, balance=max(0, td.get("balance", 0) - victim_loss), status="dead")
         xp_gain = random.randint(3, 10)
         add_xp(attacker.id, xp_gain)
         await update.message.reply_html(
