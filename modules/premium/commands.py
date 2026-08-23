@@ -2,7 +2,7 @@ import os
 import json
 from datetime import datetime
 from typing import Dict, Any
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from telegram.ext import ContextTypes
 
 from modules.utils.storage import get_user, update_user, get_group, update_group, POWERS_CATALOG
@@ -122,12 +122,12 @@ async def pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("💳 PAY NOW", url=f"https://mike-payment.vercel.app/checkout.html?user_id={uid}"),
-            InlineKeyboardButton("💰 ADD FUNDS", url=f"https://mike-payment.vercel.app/checkout.html?plan=starter&user_id={uid}"),
+            InlineKeyboardButton("💳 PAY NOW", web_app=WebAppInfo(url=f"https://mike-payment.vercel.app/checkout.html?user_id={uid}")),
+            InlineKeyboardButton("💰 ADD FUNDS", web_app=WebAppInfo(url=f"https://mike-payment.vercel.app/checkout.html?plan=starter&user_id={uid}")),
         ],
         [
             InlineKeyboardButton("💓 FEATURES", url="https://t.me/i_mikoo/11"),
-            InlineKeyboardButton("📜 TERMS AND REFUND", url="https://mike-payment.vercel.app/refund.html"),
+            InlineKeyboardButton("📜 TERMS AND REFUND", web_app=WebAppInfo(url="https://mike-payment.vercel.app/refund.html")),
         ],
     ])
 
