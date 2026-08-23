@@ -31,6 +31,7 @@ try:
 except Exception:
     _hti = None
 
+from modules.social.ping import ping_cmd
 from modules.utils.storage import (
     get_user,
     update_user,
@@ -1725,4 +1726,5 @@ HANDLERS = {
     "close": close_cmd,
     "help": help_cmd,
     "setgroup": setgroup,
+    "ping": ping_cmd,
 }

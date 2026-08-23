@@ -98,4 +98,5 @@ BOT_COMMANDS = [
     BotCommand("flip", "Flip a card in Card game"),
     BotCommand("pass", "Pass the bomb in Bomb game"),
     BotCommand("bombcancel", "Cancel active Bomb game"),
+    BotCommand("ping", "Check bot latency and system status"),
 ]

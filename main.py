@@ -506,9 +506,25 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pass
 
 
+from modules.utils.logger import send_log_message
+
+
 async def post_init(app):
     await app.bot.set_my_commands(BOT_COMMANDS)
     print(f"✅ ʀᴇɢɪꜱᴛᴇʀᴇᴅ {len(BOT_COMMANDS)} ʙᴏᴛ ᴄᴏᴍᴍᴀɴᴅꜱ ꜰᴏʀ / ꜱᴜɢɢᴇꜱᴛɪᴏɴꜱ!")
+    try:
+        bot_user = await app.bot.get_me()
+        log_text = (
+            "🤖 <b>ᴍɪᴋᴏ ʙᴏᴛ ɪꜱ ɴᴏᴡ ᴏɴʟɪɴᴇ!</b>\n\n"
+            f"👤 <b>Bot Name:</b> {bot_user.first_name}\n"
+            f"🔗 <b>Username:</b> @{bot_user.username}\n"
+            f"🆔 <b>ID:</b> <code>{bot_user.id}</code>\n"
+            "🍃 <b>Database:</b> <code>MongoDB + Redis Online</code>\n"
+            "✨ <b>Status:</b> Ready and serving users!"
+        )
+        await send_log_message(app.bot, log_text)
+    except Exception as e:
+        print(f"Startup log error: {e}")
 
 
 def main():

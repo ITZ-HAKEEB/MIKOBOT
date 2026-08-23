@@ -30,6 +30,11 @@
       "description": "MongoDB Connection String for persistent database",
       "value": "mongodb+srv://lily_music:Nishkarsh123@lilymusic.3bdrl7s.mongodb.net/?appName=lilymusic",
       "required": false
+    },
+    "LOG_GROUP_ID": {
+      "description": "Log Group / Channel ID for bot logs",
+      "value": "-1005397585622",
+      "required": false
     }
   },
   "formation": {
