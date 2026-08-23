@@ -8,11 +8,11 @@ from modules.utils.storage import get_user, update_user
 from modules.utils.logger import send_log_message
 
 PLANS = {
-    "1_month": {"name": "1 Month Premium", "amount_paise": 1500, "months": 1, "gems": 5.0, "price_inr": 15},
-    "2_months": {"name": "2 Months Premium", "amount_paise": 3000, "months": 2, "gems": 10.0, "price_inr": 30},
-    "3_months": {"name": "3 Months Premium", "amount_paise": 4000, "months": 3, "gems": 18.0, "price_inr": 40},
-    "6_months": {"name": "6 Months Premium", "amount_paise": 5000, "months": 6, "gems": 40.0, "price_inr": 50},
-    "12_months": {"name": "12 Months Premium", "amount_paise": 7500, "months": 12, "gems": 100.0, "price_inr": 75},
+    "1_month": {"name": "1 Month Premium", "amount_paise": 1500, "months": 1, "free_gems": 1.0, "price_inr": 15},
+    "2_months": {"name": "2 Months Premium", "amount_paise": 3000, "months": 2, "free_gems": 2.0, "price_inr": 30},
+    "3_months": {"name": "3 Months Premium", "amount_paise": 4000, "months": 3, "free_gems": 3.0, "price_inr": 40},
+    "6_months": {"name": "6 Months Premium", "amount_paise": 5000, "months": 6, "free_gems": 6.0, "price_inr": 50},
+    "12_months": {"name": "12 Months Premium", "amount_paise": 7500, "months": 12, "free_gems": 12.0, "price_inr": 75},
 }
 
 
@@ -74,14 +74,15 @@ async def handle_verify_payment(request: web.Request) -> web.Response:
     if not is_valid:
         return web.json_response({"success": False, "error": "Signature verification failed! Payment rejected."}, status=400)
 
-    # Valid Payment: Credit User Account in Database!
+    # Valid Payment: Activate Premium & Credit Free Bonus Gems!
     credited = False
     if user_id and str(user_id).isdigit():
         uid = int(user_id)
         ud = get_user(uid)
-        plan_info = PLANS.get(plan_key, {"gems": 5.0, "name": "1 Month Premium", "months": 1})
+        plan_info = PLANS.get(plan_key, {"free_gems": 1.0, "name": "1 Month Premium", "months": 1})
+        free_gems = plan_info.get("free_gems", 1.0)
         
-        new_gems = round(ud.get("gems", 0.0) + plan_info["gems"], 2)
+        new_gems = round(ud.get("gems", 0.0) + free_gems, 2)
         updates = {
             "gems": new_gems,
             "premium": True,
@@ -89,11 +90,11 @@ async def handle_verify_payment(request: web.Request) -> web.Response:
         
         update_user(uid, **updates)
         credited = True
-        print(f"🎉 Successfully activated VIP Premium and credited {plan_info['gems']} gems to User {uid} (Payment ID: {payment_id})")
+        print(f"🎉 Successfully activated VIP Premium and credited {free_gems} free gems to User {uid} (Payment ID: {payment_id})")
 
     return web.json_response({
         "success": True,
-        "message": "Payment verified successfully! Premium activated.",
+        "message": f"Payment verified successfully! VIP Premium activated with {PLANS.get(plan_key, {}).get('free_gems', 1)} free gem(s).",
         "order_id": order_id,
         "payment_id": payment_id,
         "credited": credited,
