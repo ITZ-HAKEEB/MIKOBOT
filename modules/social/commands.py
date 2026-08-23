@@ -786,6 +786,32 @@ COLOR_PRESETS: Dict[str, tuple[str, str, str]] = {
 }
 
 
+NAME_FONT_MAP: Dict[str, str] = {
+    "A": "Λ", "B": "ʙ", "C": "ᴄ", "D": "ᴅ", "E": "ᴇ",
+    "F": "ғ", "G": "ɢ", "H": "ʜ", "I": "ɪ", "J": "ᴊ",
+    "K": "ᴋ", "L": "ʟ", "M": "ᴍ", "N": "ɴ", "O": "ᴏ",
+    "P": "ᴘ", "Q": "ǫ", "R": "ʀ", "S": "s", "T": "ᴛ",
+    "U": "ᴜ", "V": "ᴠ", "W": "ᴡ", "X": "x", "Y": "ʏ",
+    "Z": "ᴢ",
+
+    "a": "ᴀ", "b": "ʙ", "c": "ᴄ", "d": "ᴅ", "e": "ᴇ",
+    "f": "ғ", "g": "ɢ", "h": "ʜ", "i": "ɪ", "j": "ᴊ",
+    "k": "ᴋ", "l": "ʟ", "m": "ᴍ", "n": "ɴ", "o": "ᴏ",
+    "p": "ᴘ", "q": "ǫ", "r": "ʀ", "s": "s", "t": "ᴛ",
+    "u": "ᴜ", "v": "ᴠ", "w": "ᴡ", "x": "x", "y": "ʏ",
+    "z": "ᴢ"
+}
+
+def style_author_name(name: str) -> str:
+    """Convert normal text into the desired small-cap font with floral suffix."""
+    if not name:
+        return "Uꜱᴇʀ ࿐"
+    converted = "".join(NAME_FONT_MAP.get(char, char) for char in name)
+    if "࿐" not in converted:
+        converted = f"{converted} ࿐"
+    return converted
+
+
 def generate_quote_sticker(
     text: str,
     author_name: str,
@@ -806,13 +832,16 @@ def generate_quote_sticker(
         except Exception:
             return default
 
+    # Style author name with the requested custom font & ornament
+    styled_name = style_author_name(author_name)
+
     # Load high-definition fonts (Bold & Big for author name, Regular/Normal for message text)
     font_bold_path = "assets/fonts/NotoSans-Bold.ttf" if os.path.exists("assets/fonts/NotoSans-Bold.ttf") else "assets/fonts/Roboto-Bold.ttf"
     font_reg_path = "assets/fonts/NotoSans-Regular.ttf" if os.path.exists("assets/fonts/NotoSans-Regular.ttf") else "assets/fonts/Roboto-Regular.ttf"
     font_dev_bold_path = "assets/fonts/NotoSansDevanagari-Bold.ttf"
     font_dev_reg_path = "assets/fonts/NotoSansDevanagari-Regular.ttf"
 
-    is_hindi_name = any("\u0900" <= ch <= "\u097f" for ch in author_name)
+    is_hindi_name = any("\u0900" <= ch <= "\u097f" for ch in styled_name)
     is_hindi_text = any("\u0900" <= ch <= "\u097f" for ch in text)
 
     file_name = font_dev_bold_path if is_hindi_name and os.path.exists(font_dev_bold_path) else font_bold_path
@@ -858,7 +887,7 @@ def generate_quote_sticker(
     if not lines:
         lines = [text if text else "(empty)"]
 
-    name_bbox = dummy_draw.textbbox((0, 0), author_name, font=font_name)
+    name_bbox = dummy_draw.textbbox((0, 0), styled_name, font=font_name)
     name_w = name_bbox[2] - name_bbox[0]
     name_h = name_bbox[3] - name_bbox[1]
 
@@ -907,7 +936,7 @@ def generate_quote_sticker(
             draw.ellipse([(av_x, av_y), (av_x + avatar_size, av_y + avatar_size)], fill=(255, 105, 180, 255))
     else:
         draw.ellipse([(av_x, av_y), (av_x + avatar_size, av_y + avatar_size)], fill=(255, 105, 180, 255))
-        init_letter = (author_name[:1] if author_name else "U").upper()
+        init_letter = (styled_name[:1] if styled_name else "U").upper()
         init_bbox = dummy_draw.textbbox((0, 0), init_letter, font=font_name)
         iw = init_bbox[2] - init_bbox[0]
         ih = init_bbox[3] - init_bbox[1]
@@ -956,8 +985,8 @@ def generate_quote_sticker(
         ]
         draw.polygon(tail, fill=bg_rgb)
 
-    # User's name in BOLD & BIG
-    draw.text((bx + pad_left, by + pad_top), author_name, fill=author_rgb, font=font_name)
+    # User's name in BOLD & BIG with custom font styling
+    draw.text((bx + pad_left, by + pad_top), styled_name, fill=author_rgb, font=font_name)
 
     # Message text in NORMAL
     cur_y = by + pad_top + name_h + 18
