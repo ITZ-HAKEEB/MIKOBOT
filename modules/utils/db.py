@@ -214,6 +214,35 @@ def db_save_user(user_id: int, udata: Dict[str, Any]) -> None:
     _db_pool.submit(_async_mongo_save_user, uid, doc)
 
 
+def warmup_redis_cache() -> None:
+    """Pre-warm Redis with all collections from MongoDB asynchronously."""
+    if not _redis_client or _mongo_db is None:
+        return
+    try:
+        collections = _mongo_db.list_collection_names()
+        pipe = _redis_client.pipeline()
+        for coll_name in collections:
+            for doc in _mongo_db[coll_name].find({}):
+                doc_id = str(doc.pop("_id", None))
+                if not doc_id:
+                    continue
+                if coll_name == "users":
+                    pipe.set(f"miko:user:{doc_id}", json.dumps(doc), ex=86400 * 7)
+                    pipe.sadd("miko:users", doc_id)
+                elif coll_name == "chats":
+                    pipe.sadd("miko:chats", doc_id)
+                elif coll_name == "users_chats":
+                    pipe.sadd("miko:users", doc_id)
+                elif coll_name == "sudoers":
+                    pipe.sadd("miko:sudoers", doc_id)
+                else:
+                    pipe.set(f"miko:{coll_name}:{doc_id}", json.dumps(doc))
+        pipe.execute()
+        print("⚡ Redis in-memory cache pre-warmed successfully from MongoDB!")
+    except Exception as e:
+        print(f"⚠️ Redis warm-up notice: {e}")
+
+
 def db_load_all_users() -> Dict[str, Dict[str, Any]]:
     res: Dict[str, Dict[str, Any]] = {}
     if _mongo_db is not None:

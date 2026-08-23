@@ -584,9 +584,11 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 from modules.utils.logger import send_log_message
+from modules.utils.db import warmup_redis_cache
 
 
 async def post_init(app):
+    warmup_redis_cache()
     await app.bot.set_my_commands(BOT_COMMANDS)
     print(f"✅ ʀᴇɢɪꜱᴛᴇʀᴇᴅ {len(BOT_COMMANDS)} ʙᴏᴛ ᴄᴏᴍᴍᴀɴᴅꜱ ꜰᴏʀ / ꜱᴜɢɢᴇꜱᴛɪᴏɴꜱ!")
     try:
