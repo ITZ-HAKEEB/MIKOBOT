@@ -123,7 +123,7 @@ async def pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("💳 PAY NOW", web_app=WebAppInfo(url=f"https://mike-payment.vercel.app/checkout.html?user_id={uid}")),
-            InlineKeyboardButton("💰 ADD FUNDS", web_app=WebAppInfo(url=f"https://mike-payment.vercel.app/checkout.html?plan=starter&user_id={uid}")),
+            InlineKeyboardButton("💰 ADD FUNDS", web_app=WebAppInfo(url=f"https://mike-payment.vercel.app/checkout.html?plan=1_month&user_id={uid}")),
         ],
         [
             InlineKeyboardButton("💓 FEATURES", url="https://t.me/i_mikoo/11"),
@@ -137,7 +137,6 @@ async def pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML",
         disable_web_page_preview=True,
     )
-
 
 STARS_PLANS = {
     "stars_1_month": {"title": "1 Month VIP Premium", "stars": 50, "gems": 1.0, "months": 1},
@@ -153,44 +152,34 @@ async def fpay(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ Tʜɪꜱ Cᴏᴍᴍᴀɴᴅ Oɴʟʏ Wᴏʀᴋꜱ Iɴ Tʜᴇ ᴍɪᴋᴏ Bᴏᴛ'ꜱ Dᴍ.")
         return
 
-    user = update.effective_user
-    uid = user.id if user else 0
+    if not context.args:
+        await update.message.reply_text("⚠️ <b>Usage :</b> <code>/fpay user_id</code>", parse_mode="HTML")
+        return
 
-    text = (
-        "⭐ <b>ᴍɪᴋᴏ ᴘʀᴇᴍɪᴜᴍ (ᴛᴇʟᴇɢʀᴀᴍ ꜱᴛᴀʀꜱ & ᴜᴘɪ)</b>\n\n"
-        "🌐 <b>Iɴᴛᴇʀɴᴀᴛɪᴏɴᴀʟ Uꜱᴇʀꜱ:</b> Pᴜʀᴄʜᴀꜱᴇ VIP ɪɴꜱᴛᴀɴᴛʟʏ ᴜꜱɪɴɢ <b>Tᴇʟᴇɢʀᴀᴍ Sᴛᴀʀꜱ ⭐</b> (Aᴘᴘʟᴇ Pᴀʏ, Gᴏᴏɢʟᴇ Pᴀʏ, ᴏʀ Cᴀʀᴅꜱ).\n\n"
-        "🇮🇳 <b>Iɴᴅɪᴀɴ Uꜱᴇʀꜱ:</b> Yᴏᴜ ᴄᴀɴ ᴀʟꜱᴏ ᴘᴀʏ ᴠɪᴀ <b>UPI / Rᴀᴢᴏʀᴘᴀʏ 💳</b> ᴜꜱɪɴɢ ᴛʜᴇ Mini Aᴘᴘ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ!\n\n"
-        "💎 <b>Sᴛᴀʀꜱ Pʀɪᴄɪɴɢ Pʟᴀɴꜱ:</b>\n"
-        "• 🌟 <b>1 Month:</b> 50 ⭐ <i>(+1 💎 Free Gem)</i>\n"
-        "• 🌟 <b>2 Months:</b> 100 ⭐ <i>(+2 💎 Free Gems)</i>\n"
-        "• 🌟 <b>3 Months:</b> 130 ⭐ <i>(+3 💎 Free Gems)</i>\n"
-        "• 🌟 <b>6 Months:</b> 160 ⭐ <i>(+6 💎 Free Gems)</i>\n"
-        "• 🌟 <b>12 Months:</b> 250 ⭐ <i>(+12 💎 Free Gems - Best Value)</i>\n\n"
-        "👇 <b>Select a plan below to pay with Stars:</b>"
-    )
+    target_id_str = context.args[0].strip()
+    if not target_id_str.isdigit():
+        await update.message.reply_text("⚠️ <b>Usage :</b> <code>/fpay user_id</code>", parse_mode="HTML")
+        return
 
-    keyboard = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("⭐ 1 Month (50 ⭐)", callback_data="buy_stars_1_month"),
-            InlineKeyboardButton("⭐ 2 Months (100 ⭐)", callback_data="buy_stars_2_months"),
-        ],
-        [
-            InlineKeyboardButton("⭐ 3 Months (130 ⭐)", callback_data="buy_stars_3_months"),
-            InlineKeyboardButton("⭐ 6 Months (160 ⭐)", callback_data="buy_stars_6_months"),
-        ],
-        [
-            InlineKeyboardButton("⭐ 12 Months (250 ⭐) 🏆", callback_data="buy_stars_12_months"),
-        ],
-        [
-            InlineKeyboardButton("💳 PAY WITH UPI / RAZORPAY (₹)", web_app=WebAppInfo(url=f"https://mike-payment.vercel.app/checkout.html?user_id={uid}")),
-        ],
-        [
-            InlineKeyboardButton("💓 FEATURES", url="https://t.me/i_mikoo/11"),
-            InlineKeyboardButton("📜 TERMS & REFUND", web_app=WebAppInfo(url="https://mike-payment.vercel.app/refund.html")),
-        ],
-    ])
+    target_uid = int(target_id_str)
+    chat_id = update.effective_chat.id
 
-    await update.message.reply_text(text, reply_markup=keyboard, parse_mode="HTML")
+    try:
+        await context.bot.send_invoice(
+            chat_id=chat_id,
+            title="miko premium access",
+            description="PAY 59 STARS TO BUY 30 DAYS MIKO PREMIUM ACCESS IN PROVIDED USER ID.",
+            payload=f"fpay_{target_uid}",
+            provider_token="",
+            currency="XTR",
+            prices=[LabeledPrice(label="miko premium access", amount=59)],
+            photo_url="https://i.ibb.co/SwtfTqpP/photo-2026-08-24-03-31-04.jpg",
+            photo_width=512,
+            photo_height=512,
+        )
+    except Exception as e:
+        print(f"Error sending Stars invoice: {e}")
+        await update.message.reply_text("⚠️ Could not open Stars checkout invoice. Please try again.")
 
 
 async def send_stars_invoice(query, context, plan_key: str):
@@ -235,26 +224,32 @@ async def successful_payment_callback(update: Update, context: ContextTypes.DEFA
     payment = update.message.successful_payment
     user = update.effective_user
     payload = payment.invoice_payload
-    uid = user.id
 
-    plan = STARS_PLANS.get(payload, {"title": "VIP Premium", "gems": 1.0, "months": 1})
-    free_gems = plan.get("gems", 1.0)
+    if payload.startswith("fpay_"):
+        parts = payload.split("_")
+        target_uid = int(parts[1])
+        plan_title = "30 Days Miko Premium Access"
+        free_gems = 1.0
+    else:
+        target_uid = user.id
+        plan = STARS_PLANS.get(payload, {"title": "VIP Premium", "gems": 1.0, "months": 1})
+        plan_title = plan["title"]
+        free_gems = plan.get("gems", 1.0)
 
-    ud = get_user(uid)
+    ud = get_user(target_uid)
     new_gems = round(ud.get("gems", 0.0) + free_gems, 2)
-    update_user(uid, premium=True, gems=new_gems)
+    update_user(target_uid, premium=True, gems=new_gems)
 
     text = (
-        f"🎉 <b>ᴛʜᴀɴᴋ ʏᴏᴜ ꜰᴏʀ ʏᴏᴜʀ ᴘᴀʏᴍᴇɴᴛ!</b>\n\n"
-        f"👑 <b>Plan Activated:</b> {plan['title']}\n"
+        f"🎉 <b>ᴍɪᴋᴏ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴛɪᴠᴀᴛᴇᴅ!</b>\n\n"
+        f"👤 <b>User ID:</b> <code>{target_uid}</code>\n"
         f"⭐ <b>Stars Paid:</b> {payment.total_amount} ⭐\n"
         f"💎 <b>Free Bonus Gems:</b> +{int(free_gems)} 💎\n"
-        f"✨ <b>Total Gems Balance:</b> {new_gems} 💎\n\n"
+        f"✨ <b>VIP Status:</b> 30 Days Active\n\n"
         f"🌟 <i>Your VIP perks are now active across all groups! Check with /pfp or /bal.</i>"
     )
 
     await update.message.reply_text(text, parse_mode="HTML")
-
 
 async def claim(update, context):
     chat = update.effective_chat
