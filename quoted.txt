@@ -58,14 +58,31 @@ NAME_FONT_MAP: Dict[str, str] = {
     "z": "ᴢ"
 }
 
+# Regex to remove ornament signs, emojis, symbols, Tibetan marks, etc.
+ORNAMENT_PATTERN = re.compile(
+    r'['
+    r'\u0f00-\u0fff'           # Tibetan signs & ornaments (࿐, ༒, ༺, ༻, etc.)
+    r'\u2600-\u27bf'           # Miscellaneous symbols & Dingbats (★, ✿, ⚡, etc.)
+    r'\U0001f300-\U0001f9ff'   # Emojis & Pictographs (👑, 🥀, 🦋, ✨, etc.)
+    r'\U0001fa00-\U0001faff'   # Symbols and Pictographs Extended
+    r'\ufe00-\ufe0f'           # Variation selectors
+    r'亗★☆♛👑⚡✿❀❁❃᭄™©®ʚɞ✦✧𖤍༒༺༻ᯓ✪✫✬✭✮✯✰✨🥀🦋🕊🔥❄️🖤🤍❤️🌸🧸🎀'
+    r']+'
+)
+
 def style_author_name(name: str) -> str:
-    """Convert normal text into the desired small-cap font with floral suffix."""
+    """Remove existing ornaments/emojis and convert normal text into the desired small-cap font with floral suffix."""
     if not name:
         return "Uꜱᴇʀ ࿐"
-    converted = "".join(NAME_FONT_MAP.get(char, char) for char in name)
-    if "࿐" not in converted:
-        converted = f"{converted} ࿐"
-    return converted
+    
+    # Strip existing ornaments, symbols and emojis
+    cleaned = ORNAMENT_PATTERN.sub('', name)
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+    if not cleaned:
+        cleaned = "User"
+
+    converted = "".join(NAME_FONT_MAP.get(char, char) for char in cleaned)
+    return f"{converted} ࿐"
 
 
 def hex_to_rgb(hex_str: str, default: Tuple[int, int, int, int] = (24, 18, 38, 255)) -> Tuple[int, int, int, int]:
