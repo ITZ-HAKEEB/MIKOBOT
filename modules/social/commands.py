@@ -881,7 +881,7 @@ def generate_quote_sticker(
     bubble_h = int(name_h + 18 + text_total_h + pad_top + pad_bottom)
 
     avatar_size = 104
-    bottom_clearance = 36  # Transparent elevation above Telegram timestamp
+    bottom_clearance = 68  # Generous transparent elevation above Telegram timestamp
 
     total_w = avatar_size + 24 + bubble_w + 24
     total_h = max(avatar_size + 20, bubble_h + 20) + bottom_clearance
