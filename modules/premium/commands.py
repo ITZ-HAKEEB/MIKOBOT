@@ -104,21 +104,56 @@ async def mypowers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("\n".join(lines), parse_mode="HTML")
 
 
-async def pay(update, context):
+async def pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat and update.effective_chat.type != "private":
-        await update.message.reply_text("⚠️ Tʜɪꜱ Cᴏᴍᴍᴀɴᴅ Oɴʟʏ Wᴏʀᴋꜱ Iɴ Tʜᴇ ᴍɪᴋᴏ Bᴏᴛ'斯的 Dᴍ.")
+        await update.message.reply_text("⚠️ Tʜɪꜱ Cᴏᴍᴍᴀɴᴅ Oɴʟʏ Wᴏʀᴋꜱ Iɴ Tʜᴇ ᴍɪᴋᴏ Bᴏᴛ'ꜱ Dᴍ.")
         return
 
-    await update.message.reply_text(
-        "💳 <b>ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ</b>\n\n"
-        "Premium unlocks gem usage, extra commands, and priority features.\n"
-        "Plans (example pricing):\n"
-        "• 1 Month — 10 Gems / 50 Stars\n"
-        "• 3 Months — 25 Gems / 120 Stars\n"
-        "• Lifetime — 100 Gems\n\n"
-        "Purchase via /gems (India) or /fgems (Stars)",
-        parse_mode="HTML",
+    text = (
+        "<b>ᴍɪᴋᴏ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇꜱꜱ</b>\n\n"
+        "ɪᴍᴘᴏʀᴛᴀɴᴛ ɴᴏᴛᴇ: ɪꜰ ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴀɴ ɪɴᴅɪᴀɴ ᴜꜱᴇʀ ᴀɴᴅ ᴜɴʙᴀʟᴇ ᴛᴏ ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ ꜰʀᴏᴍ ᴛʜᴇ ꜱɪᴛᴇ ᴛʜᴇɴ ʏᴏᴜ ᴄᴀɴ ʙᴜʏ ʙᴀᴋᴀ ᴘʀᴇᴍɪᴜᴍ ᴜꜱɪɴɢ ᴛᴇʟᴇɢʀᴀᴍ ꜱᴛᴀʀꜱ ᴜꜱɪɴɢ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ : /fpay\n\n"
+        "ɪꜰ ʏᴏᴜ ᴀʀᴇ ꜰʀᴏᴍ ɪɴᴅɪᴀ ᴛʜᴇɴ ʏᴏᴜ ᴄᴀɴ ʙᴜʏ ʙᴀᴋᴀ ᴘʀᴇᴍɪᴜᴍ ꜱɪᴍᴘʟʏ ꜰʀᴏᴍ ᴛʜᴇ ʙᴇʟᴏᴡ ᴘᴀʏ ɴᴏᴡ ʙᴜᴛᴛᴏɴ\n"
+        "ᴄʜᴇᴄᴋ ʏᴏᴜʀ ᴛᴇʟᴇɢʀᴀᴍ ɪᴅ : /id\n\n"
+        "ʏᴏᴜ ᴄᴀɴ ʀᴇᴘᴏʀᴛ ᴀɴʏ ɪꜱꜱᴜᴇ ᴛʜʀᴏᴜɢʜ ᴛʜᴇ ᴅᴍ ᴏꜰ ᴛʜɪꜱ ᴄʜᴀɴɴᴇʟ : @Developer_World_Advay"
     )
+
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("💳 PAY NOW", url="https://t.me/i_mikoo/12"),
+            InlineKeyboardButton("💰 ADD FUNDS", url="https://t.me/i_mikoo/14"),
+        ],
+        [
+            InlineKeyboardButton("💓 FEATURES", url="https://t.me/i_mikoo/11"),
+            InlineKeyboardButton("📜 TERMS AND REFUND", url="https://t.me/i_mikoo"),
+        ],
+    ])
+
+    await update.message.reply_text(
+        text,
+        reply_markup=keyboard,
+        parse_mode="HTML",
+        disable_web_page_preview=True,
+    )
+
+
+async def fpay(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat and update.effective_chat.type != "private":
+        await update.message.reply_text("⚠️ Tʜɪꜱ Cᴏᴍᴍᴀɴᴅ Oɴʟʏ Wᴏʀᴋꜱ Iɴ Tʜᴇ ᴍɪᴋᴏ Bᴏᴛ'ꜱ Dᴍ.")
+        return
+
+    text = (
+        "⭐ <b>ᴍɪᴋᴏ ᴘʀᴇᴍɪᴜᴍ (ᴛᴇʟᴇɢʀᴀᴍ ꜱᴛᴀʀꜱ)</b>\n\n"
+        "If you are outside India, you can purchase Miko Premium using Telegram Stars.\n\n"
+        "🌟 <b>1 Month Premium:</b> 50 ⭐\n"
+        "🌟 <b>3 Months Premium:</b> 120 ⭐\n"
+        "🌟 <b>1 Year Premium:</b> 400 ⭐\n\n"
+        "💬 Contact @Developer_World_Advay or @advaydev to activate instantly!"
+    )
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("⭐ BUY WITH STARS", url="https://t.me/advaydev")],
+        [InlineKeyboardButton("💓 FEATURES", url="https://t.me/i_mikoo/11")],
+    ])
+    await update.message.reply_text(text, reply_markup=keyboard, parse_mode="HTML")
 
 
 async def claim(update, context):
@@ -392,6 +427,7 @@ HANDLERS = {
     "mypowers": mypowers,
     "mp": mypowers,
     "pay": pay,
+    "fpay": fpay,
     "claim": claim,
     "coupons": coupons,
     "create_coupon": create_coupon,
