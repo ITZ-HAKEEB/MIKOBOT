@@ -1,6 +1,7 @@
 import os
 import sys
 import random
+import asyncio
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -66,16 +67,33 @@ async def pfp(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"💼 Wᴀʟʟᴇᴛ : ${wallet}"
     )
 
+    sent_msg = None
     try:
         profile_photos = await context.bot.get_user_profile_photos(user.id)
         if profile_photos.total_count > 0:
             photo = profile_photos.photos[0][-1]
-            await update.message.reply_photo(photo.file_id, caption=caption, parse_mode="HTML")
-            return
+            sent_msg = await update.message.reply_photo(photo.file_id, caption=caption, parse_mode="HTML")
     except Exception:
-        pass
+        sent_msg = None
 
-    await update.message.reply_text(caption, parse_mode="HTML")
+    if not sent_msg:
+        sent_msg = await update.message.reply_text(caption, parse_mode="HTML")
+
+    # Auto-delete message after 10 seconds
+    async def _auto_delete():
+        await asyncio.sleep(10)
+        try:
+            if sent_msg:
+                await sent_msg.delete()
+        except Exception:
+            pass
+        try:
+            if update.message and update.effective_chat and update.effective_chat.type != "private":
+                await update.message.delete()
+        except Exception:
+            pass
+
+    asyncio.create_task(_auto_delete())
 
 
 from modules.utils.db import add_chat, add_user_chat
