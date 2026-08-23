@@ -161,7 +161,7 @@ def get_user_chats() -> List[int]:
 
 def db_load_user(user_id: int) -> Optional[Dict[str, Any]]:
     uid = str(user_id)
-    # 1. Try Redis
+    # 1. Primary: Try Redis (sub-millisecond instant lookup)
     if _redis_client:
         try:
             val = _redis_client.get(f"miko:user:{uid}")
@@ -170,14 +170,15 @@ def db_load_user(user_id: int) -> Optional[Dict[str, Any]]:
         except Exception:
             pass
 
-    # 2. Try Mongo
+    # 2. Backup Fallback: Try Mongo if missing from Redis
     if _mongo_db is not None:
         try:
             doc = _mongo_db.users.find_one({"_id": uid})
             if doc:
                 doc.pop("_id", None)
                 if _redis_client:
-                    _redis_client.set(f"miko:user:{uid}", json.dumps(doc), ex=86400)
+                    _redis_client.set(f"miko:user:{uid}", json.dumps(doc))
+                    _redis_client.sadd("miko:users", uid)
                 return doc
         except Exception:
             pass
@@ -202,14 +203,15 @@ def db_save_user(user_id: int, udata: Dict[str, Any]) -> None:
     uid = str(user_id)
     serialized = json.dumps(udata)
 
-    # 1. Save to Redis (instant in-memory write < 0.5ms)
+    # 1. Primary: Save directly to Redis (instant in-memory write < 0.5ms)
     if _redis_client:
         try:
-            _redis_client.set(f"miko:user:{uid}", serialized, ex=86400 * 7)
+            _redis_client.set(f"miko:user:{uid}", serialized)
+            _redis_client.sadd("miko:users", uid)
         except Exception:
             pass
 
-    # 2. Async background sync to Mongo (zero command lag)
+    # 2. Backup: Async background sync to Mongo
     doc = dict(udata)
     _db_pool.submit(_async_mongo_save_user, uid, doc)
 
@@ -350,6 +352,7 @@ def is_sudo_user(user_id: int) -> bool:
 
 def db_load_group(chat_id: int) -> Optional[Dict[str, Any]]:
     cid = str(chat_id)
+    # 1. Primary: Try Redis
     if _redis_client:
         try:
             val = _redis_client.get(f"miko:group:{cid}")
@@ -357,13 +360,15 @@ def db_load_group(chat_id: int) -> Optional[Dict[str, Any]]:
                 return json.loads(val)
         except Exception:
             pass
+    # 2. Backup Fallback: Try Mongo
     if _mongo_db is not None:
         try:
             doc = _mongo_db.groups.find_one({"_id": cid})
             if doc:
                 doc.pop("_id", None)
                 if _redis_client:
-                    _redis_client.set(f"miko:group:{cid}", json.dumps(doc), ex=86400)
+                    _redis_client.set(f"miko:group:{cid}", json.dumps(doc))
+                    _redis_client.sadd("miko:chats", cid)
                 return doc
         except Exception:
             pass
@@ -381,13 +386,14 @@ def _async_mongo_save_group(cid: str, doc: dict):
 def db_save_group(chat_id: int, gdata: Dict[str, Any]) -> None:
     cid = str(chat_id)
     serialized = json.dumps(gdata)
-    # 1. Save to Redis immediately (< 0.5ms)
+    # 1. Primary: Save directly to Redis (< 0.5ms)
     if _redis_client:
         try:
-            _redis_client.set(f"miko:group:{cid}", serialized, ex=86400 * 7)
+            _redis_client.set(f"miko:group:{cid}", serialized)
+            _redis_client.sadd("miko:chats", cid)
         except Exception:
             pass
-    # 2. Save to Mongo in background
+    # 2. Backup: Save to Mongo in background
     doc = dict(gdata)
     _db_pool.submit(_async_mongo_save_group, cid, doc)
 
