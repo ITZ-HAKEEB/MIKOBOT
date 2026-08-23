@@ -8,24 +8,14 @@ from telegram import Update
 from telegram.error import Forbidden, BadRequest, RetryAfter
 from telegram.ext import ContextTypes
 
-from modules.utils.db import get_chats, get_user_chats, rm_chat, rm_user_chat
+from modules.utils.db import get_chats, get_user_chats, rm_chat, rm_user_chat, is_sudo_user
 
 broadcasting_lock = asyncio.Lock()
-
-OWNER_IDS = {7408854697, 6605051662, 5971488185, 7810795240}
-
-
-def is_sudo(user_id: int) -> bool:
-    env_owner = os.getenv("OWNER_ID")
-    if env_owner and env_owner.isdigit() and int(env_owner) == user_id:
-        return True
-    return user_id in OWNER_IDS
 
 
 async def broadcast_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    if not user or not is_sudo(user.id):
-        # Also allow if user is global richest or sudoer, or check permission
+    if not user or not is_sudo_user(user.id):
         await update.message.reply_text("🚫 Only Bot Owner / Sudoers can broadcast!")
         return
 

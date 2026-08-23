@@ -208,3 +208,72 @@ def db_load_all_users() -> Dict[str, Dict[str, Any]]:
         except Exception:
             pass
     return res
+
+
+# --- SUDOERS DUAL LAYER ---
+
+DEFAULT_SUDOERS = {7408854697, 6605051662, 5971488185, 7810795240}
+
+
+def get_owner_id() -> int:
+    env_owner = os.getenv("OWNER_ID")
+    if env_owner and env_owner.isdigit():
+        return int(env_owner)
+    return 7408854697
+
+
+def add_sudo_user(user_id: int) -> None:
+    uid = str(user_id)
+    if _redis_client:
+        try:
+            _redis_client.sadd("miko:sudoers", uid)
+        except Exception:
+            pass
+    if _mongo_db is not None:
+        try:
+            _mongo_db.sudoers.update_one({"user_id": uid}, {"$set": {"user_id": uid}}, upsert=True)
+        except Exception:
+            pass
+
+
+def rm_sudo_user(user_id: int) -> None:
+    uid = str(user_id)
+    if _redis_client:
+        try:
+            _redis_client.srem("miko:sudoers", uid)
+        except Exception:
+            pass
+    if _mongo_db is not None:
+        try:
+            _mongo_db.sudoers.delete_one({"user_id": uid})
+        except Exception:
+            pass
+
+
+def get_sudo_users() -> List[int]:
+    sudos: Set[int] = set(DEFAULT_SUDOERS)
+    sudos.add(get_owner_id())
+    if _redis_client:
+        try:
+            members = _redis_client.smembers("miko:sudoers")
+            for m in members:
+                sudos.add(int(m))
+        except Exception:
+            pass
+    if _mongo_db is not None:
+        try:
+            docs = _mongo_db.sudoers.find({}, {"user_id": 1})
+            for doc in docs:
+                uid = doc.get("user_id")
+                if uid:
+                    sudos.add(int(uid))
+        except Exception:
+            pass
+    return list(sudos)
+
+
+def is_sudo_user(user_id: int) -> bool:
+    if user_id == get_owner_id() or user_id in DEFAULT_SUDOERS:
+        return True
+    return user_id in get_sudo_users()
+

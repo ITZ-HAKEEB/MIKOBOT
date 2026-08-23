@@ -838,11 +838,21 @@ async def handle_prefix_command(update: Update, context: ContextTypes.DEFAULT_TY
     elif cmd in ("broadcast", "gcast"):
         from modules.management.broadcast import broadcast_cmd
         await broadcast_cmd(update, context)
+    elif cmd in ("addsudo", "add_sudo"):
+        from modules.management.sudo import addsudo_cmd
+        await addsudo_cmd(update, context)
+    elif cmd in ("delsudo", "rmsudo", "del_sudo"):
+        from modules.management.sudo import delsudo_cmd
+        await delsudo_cmd(update, context)
+    elif cmd in ("sudolist", "sudos", "sudo_list"):
+        from modules.management.sudo import sudolist_cmd
+        await sudolist_cmd(update, context)
     elif cmd in ("help", "ghelp", "mgmt"):
         await cmd_mgmt_help(update, context)
 
 
 from modules.management.broadcast import broadcast_cmd
+from modules.management.sudo import addsudo_cmd, delsudo_cmd, sudolist_cmd
 
 MANAGEMENT_COMMANDS = {
     "ban": lambda u, c: cmd_ban(u, c, is_dban=False),
@@ -868,4 +878,9 @@ MANAGEMENT_COMMANDS = {
     "ghelp": cmd_mgmt_help,
     "broadcast": broadcast_cmd,
     "gcast": broadcast_cmd,
+    "addsudo": addsudo_cmd,
+    "delsudo": delsudo_cmd,
+    "rmsudo": delsudo_cmd,
+    "sudolist": sudolist_cmd,
+    "sudos": sudolist_cmd,
 }
