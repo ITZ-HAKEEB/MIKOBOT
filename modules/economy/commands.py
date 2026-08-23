@@ -441,7 +441,10 @@ async def kill_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tn = _bold(_styled_name(tn_raw))
     td = get_user(target.id, getattr(target, "username", tn_raw), tn_raw)
     if td.get("status") == "dead":
-        await update.message.reply_text("💀 Victim Is Already Dead.")
+        await update.message.reply_text(
+            "💀 Vɪᴄᴛɪᴍ Iꜱ Aʟʀᴇᴀᴅʏ Dᴇᴀᴅ.\n"
+            "✨ Rᴇᴠɪᴠᴇ Vɪᴄᴛɪᴍ Uꜱɪɴɢ → /revive"
+        )
         return
     powers = td.get("powers") or []
     if "cloak" in powers:
