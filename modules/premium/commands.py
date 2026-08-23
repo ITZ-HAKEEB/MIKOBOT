@@ -2,7 +2,7 @@ import os
 import json
 from datetime import datetime
 from typing import Dict, Any
-from telegram import Update
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes
 
 from modules.utils.storage import get_user, update_user, get_group, update_group, POWERS_CATALOG
