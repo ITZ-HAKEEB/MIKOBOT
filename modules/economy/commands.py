@@ -723,9 +723,14 @@ def render_toprich_message(chat_id: int, mode: str = "global"):
 async def toprich(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not (await _econ_gate(update)):
         return
-    chat_id = update.effective_chat.id if update.effective_chat else 0
+    chat = update.effective_chat
+    is_private = not chat or chat.type == "private"
+    chat_id = chat.id if chat else 0
     text, keyboard = render_toprich_message(chat_id, "global")
-    await update.message.reply_text(text, reply_markup=keyboard, parse_mode="HTML")
+    if is_private:
+        await update.message.reply_text(text, parse_mode="HTML")
+    else:
+        await update.message.reply_text(text, reply_markup=keyboard, parse_mode="HTML")
 
 
 def render_topkill_message(chat_id: int, mode: str = "global"):
@@ -766,9 +771,14 @@ def render_topkill_message(chat_id: int, mode: str = "global"):
 async def topkill(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not (await _econ_gate(update)):
         return
-    chat_id = update.effective_chat.id if update.effective_chat else 0
+    chat = update.effective_chat
+    is_private = not chat or chat.type == "private"
+    chat_id = chat.id if chat else 0
     text, keyboard = render_topkill_message(chat_id, "global")
-    await update.message.reply_text(text, reply_markup=keyboard, parse_mode="HTML")
+    if is_private:
+        await update.message.reply_text(text, parse_mode="HTML")
+    else:
+        await update.message.reply_text(text, reply_markup=keyboard, parse_mode="HTML")
 
 
 def render_toprob_message(chat_id: int, mode: str = "global"):
@@ -809,9 +819,14 @@ def render_toprob_message(chat_id: int, mode: str = "global"):
 async def toprob(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not (await _econ_gate(update)):
         return
-    chat_id = update.effective_chat.id if update.effective_chat else 0
+    chat = update.effective_chat
+    is_private = not chat or chat.type == "private"
+    chat_id = chat.id if chat else 0
     text, keyboard = render_toprob_message(chat_id, "global")
-    await update.message.reply_text(text, reply_markup=keyboard, parse_mode="HTML")
+    if is_private:
+        await update.message.reply_text(text, parse_mode="HTML")
+    else:
+        await update.message.reply_text(text, reply_markup=keyboard, parse_mode="HTML")
 
 
 def get_user_daily_task(ud: dict) -> dict:
