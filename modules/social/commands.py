@@ -504,10 +504,10 @@ async def addf(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args or []
     tag = (args[0].strip() if args else "").lstrip("#").lower()
     if not target or target.id == user.id:
-        await update.message.reply_text("📌 REPLY TO A USER TO ADD A FRIEND: /addf <tag>")
+        await update.message.reply_text("📌 Rᴇᴘʟʏ Tᴏ A Uꜱᴇʀ Tᴏ Aᴅᴅ A Fʀɪᴇɴᴅ: /addf <tag>")
         return
     if not tag:
-        await update.message.reply_text("📌 PROVIDE A TAG: /addf <tag> (e.g. /addf bestie)")
+        await update.message.reply_text("📌 Pʀᴏᴠɪᴅᴇ A Tᴀɢ: /addf <tag> (e.g. /addf bestie)")
         return
     get_user(user.id, user.username or user.first_name or "User", user.first_name)
     get_user(

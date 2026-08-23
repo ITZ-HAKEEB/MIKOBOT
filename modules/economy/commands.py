@@ -434,7 +434,7 @@ async def kill_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = _get_target(update, context, attacker_id=attacker.id)
     if not target or target.id == attacker.id:
         await update.message.reply_text(
-            "⚠️ REPLY TO SOMEONE TO KILL THEM."
+            "⚠️ Rᴇᴘʟʏ Tᴏ Sᴏᴍᴇᴏɴᴇ Tᴏ Kɪʟʟ Tʜᴇᴍ."
         )
         return
     tn_raw = getattr(target, "first_name", None) or getattr(target, "username", "User")
