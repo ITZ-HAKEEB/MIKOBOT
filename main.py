@@ -9,6 +9,7 @@ from telegram.ext import (
     CommandHandler,
     CallbackQueryHandler,
     MessageHandler,
+    ChatMemberHandler,
     filters,
 )
 
@@ -86,10 +87,50 @@ async def welcome_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE
     if not new_members:
         return
     bot_id = getattr(context.bot, "id", None)
+    adder = update.effective_user
+    adder_name = adder.first_name if adder and adder.first_name else "Λᴅᴠᴀʏ"
+
     for member in new_members:
         if bot_id and member.id == bot_id:
-            continue
+            bot_add_msg = (
+                f"<b>👀 Hii {html.escape(adder_name)} ࿐\n\n"
+                "💓 Tʜᴀɴᴋꜱ Fᴏʀ Aᴅᴅɪɴɢ Mᴇ Iɴ Tʜɪꜱ Cʜᴀᴛ\n"
+                "💓 Cʟᴏꜱᴇ Gᴀᴍɪɴɢ Cᴏᴍᴍᴀɴᴅꜱ: /close\n"
+                "💓 Rᴇᴏᴘᴇɴ Gᴀᴍɪɴɢ Cᴏᴍᴍᴀɴᴅꜱ : /open\n"
+                "💓 Eᴄᴏɴᴏᴍʏ Cᴏᴍᴍᴀɴᴅꜱ : /economy\n"
+                "💓 Aʟʟ Bᴀᴋᴀ Gᴀᴍᴇꜱ : /game</b>"
+            )
+            await update.message.reply_text(bot_add_msg, parse_mode="HTML")
+            return
         await update.message.reply_text("💓 welcome —͟͞͞Mɪᴋᴏ 亗")
+
+
+async def on_my_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    result = update.my_chat_member
+    if not result:
+        return
+    old_status = result.old_chat_member.status
+    new_status = result.new_chat_member.status
+    chat = update.effective_chat
+    if not chat or chat.type == "private":
+        return
+
+    # Check if bot was added/promoted in group
+    if old_status not in ("member", "administrator") and new_status in ("member", "administrator"):
+        adder = result.from_user
+        adder_name = adder.first_name if adder and adder.first_name else "Λᴅᴠᴀʏ"
+        bot_add_msg = (
+            f"<b>👀 Hii {html.escape(adder_name)} ࿐\n\n"
+            "💓 Tʜᴀɴᴋꜱ Fᴏʀ Aᴅᴅɪɴɢ Mᴇ Iɴ Tʜɪꜱ Cʜᴀᴛ\n"
+            "💓 Cʟᴏꜱᴇ Gᴀᴍɪɴɢ Cᴏᴍᴍᴀɴᴅꜱ: /close\n"
+            "💓 Rᴇᴏᴘᴇɴ Gᴀᴍɪɴɢ Cᴏᴍᴍᴀɴᴅꜱ : /open\n"
+            "💓 Eᴄᴏɴᴏᴍʏ Cᴏᴍᴍᴀɴᴅꜱ : /economy\n"
+            "💓 Aʟʟ Bᴀᴋᴀ Gᴀᴍᴇꜱ : /game</b>"
+        )
+        try:
+            await context.bot.send_message(chat_id=chat.id, text=bot_add_msg, parse_mode="HTML")
+        except Exception:
+            pass
 
 
 async def item(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -548,6 +589,7 @@ def main():
         app.add_handler(CommandHandler(cmd_name, fn))
 
     app.add_handler(MessageHandler(filters.ALL, track_chat_activity), group=-1)
+    app.add_handler(ChatMemberHandler(on_my_chat_member, ChatMemberHandler.MY_CHAT_MEMBER))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_members))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_prefix_command), group=1)
     app.add_handler(MessageHandler(filters.ChatType.PRIVATE & (filters.TEXT | filters.Sticker.ALL) & ~filters.COMMAND, dm_chatbot_handler), group=2)
