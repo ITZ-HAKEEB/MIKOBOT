@@ -25,7 +25,7 @@ def save_whisper(whisper_id: str, data: Dict[str, Any]) -> None:
     redis_client = get_redis_client()
     if redis_client:
         try:
-            redis_client.set(f"miko:whisper:{whisper_id}", json.dumps(data), ex=86400 * 7)
+            redis_client.set(f"miko:whisper:{whisper_id}", json.dumps(data))
         except Exception:
             pass
     mongo_db = get_mongo_db()
