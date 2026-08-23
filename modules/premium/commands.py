@@ -147,6 +147,15 @@ STARS_PLANS = {
 }
 
 
+STARS_PLANS = {
+    "stars_1_month": {"title": "1 Month VIP Premium", "stars": 10, "gems": 1.0, "months": 1},
+    "stars_2_months": {"title": "2 Months VIP Premium", "stars": 15, "gems": 2.0, "months": 2},
+    "stars_3_months": {"title": "3 Months VIP Premium", "stars": 20, "gems": 3.0, "months": 3},
+    "stars_6_months": {"title": "6 Months VIP Premium", "stars": 40, "gems": 6.0, "months": 6},
+    "stars_12_months": {"title": "12 Months VIP Premium", "stars": 50, "gems": 12.0, "months": 12},
+}
+
+
 async def fpay(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat and update.effective_chat.type != "private":
         await update.message.reply_text("⚠️ Tʜɪꜱ Cᴏᴍᴍᴀɴᴅ Oɴʟʏ Wᴏʀᴋꜱ Iɴ Tʜᴇ ᴍɪᴋᴏ Bᴏᴛ'ꜱ Dᴍ.")
@@ -162,34 +171,38 @@ async def fpay(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     target_uid = int(target_id_str)
+    chat_id = update.effective_chat.id
 
-    text = (
-        f"⭐ <b>ᴍɪᴋᴏ ᴘʀᴇᴍɪᴜᴍ (ᴛᴇʟᴇɢʀᴀᴍ ꜱᴛᴀʀꜱ)</b>\n\n"
-        f"👤 <b>Target User ID:</b> <code>{target_uid}</code>\n\n"
-        f"💎 <b>Stars Pricing Plans & Free Gems:</b>\n"
-        f"• 🌟 <b>1 Month:</b> 10 ⭐ <i>(+1 💎 Free Gem)</i>\n"
-        f"• 🌟 <b>2 Months:</b> 15 ⭐ <i>(+2 💎 Free Gems)</i>\n"
-        f"• 🌟 <b>3 Months:</b> 20 ⭐ <i>(+3 💎 Free Gems)</i>\n"
-        f"• 🌟 <b>6 Months:</b> 40 ⭐ <i>(+6 💎 Free Gems)</i>\n"
-        f"• 🌟 <b>12 Months:</b> 50 ⭐ <i>(+12 💎 Free Gems - Best Value)</i>\n\n"
-        f"👇 <b>Select a plan below to pay with Stars:</b>"
-    )
+    # Support optional month parameter: /fpay <user_id> [1|2|3|6|12]
+    months = 1
+    if len(context.args) > 1 and context.args[1].isdigit():
+        req_m = int(context.args[1])
+        if req_m in [1, 2, 3, 6, 12]:
+            months = req_m
 
-    keyboard = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("⭐ 1 Month (10 ⭐)", callback_data=f"buy_stars_1_month_{target_uid}"),
-            InlineKeyboardButton("⭐ 2 Months (15 ⭐)", callback_data=f"buy_stars_2_months_{target_uid}"),
-        ],
-        [
-            InlineKeyboardButton("⭐ 3 Months (20 ⭐)", callback_data=f"buy_stars_3_months_{target_uid}"),
-            InlineKeyboardButton("⭐ 6 Months (40 ⭐)", callback_data=f"buy_stars_6_months_{target_uid}"),
-        ],
-        [
-            InlineKeyboardButton("⭐ 12 Months (50 ⭐) 🏆", callback_data=f"buy_stars_12_months_{target_uid}"),
-        ],
-    ])
+    plan_map = {
+        1: ("stars_1_month", 10, 30, 1.0),
+        2: ("stars_2_months", 15, 60, 2.0),
+        3: ("stars_3_months", 20, 90, 3.0),
+        6: ("stars_6_months", 40, 180, 6.0),
+        12: ("stars_12_months", 50, 365, 12.0),
+    }
 
-    await update.message.reply_text(text, reply_markup=keyboard, parse_mode="HTML")
+    plan_key, stars_amount, days_count, free_gems = plan_map.get(months, ("stars_1_month", 10, 30, 1.0))
+
+    try:
+        await context.bot.send_invoice(
+            chat_id=chat_id,
+            title="miko premium access",
+            description=f"PAY {stars_amount} STARS TO BUY {days_count} DAYS MIKO PREMIUM ACCESS IN PROVIDED USER ID.",
+            payload=f"fpay_{target_uid}_{plan_key}",
+            provider_token="",  # Must be empty string for Telegram Stars (XTR)
+            currency="XTR",
+            prices=[LabeledPrice(label="miko premium access", amount=stars_amount)],
+        )
+    except Exception as e:
+        print(f"Error sending Stars invoice: {e}")
+        await update.message.reply_text(f"⚠️ Could not open Stars checkout invoice: {e}")
 
 
 async def send_stars_invoice(query, context, callback_data: str):
@@ -197,7 +210,6 @@ async def send_stars_invoice(query, context, callback_data: str):
     target_uid = query.from_user.id
     raw_key = callback_data.replace("buy_stars_", "")
 
-    # Identify matching plan
     plan_key = None
     for pk in STARS_PLANS.keys():
         clean_pk = pk.replace("stars_", "")
@@ -227,9 +239,6 @@ async def send_stars_invoice(query, context, callback_data: str):
             provider_token="",  # Must be empty string for Telegram Stars (XTR)
             currency="XTR",
             prices=[LabeledPrice(label="miko premium access", amount=plan["stars"])],
-            photo_url="https://i.ibb.co/SwtfTqpP/photo-2026-08-24-03-31-04.jpg",
-            photo_width=512,
-            photo_height=512,
         )
         await query.answer()
     except Exception as e:
@@ -240,54 +249,54 @@ async def send_stars_invoice(query, context, callback_data: str):
 async def pre_checkout_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Answer Telegram Stars pre-checkout query"""
     query = update.pre_checkout_query
-    if query.invoice_payload.startswith("fpay_") or query.invoice_payload.startswith("stars_"):
+    try:
         await query.answer(ok=True)
-    else:
-        await query.answer(ok=False, error_message="Payment verification error. Please contact support.")
+    except Exception as e:
+        print(f"Error answering pre-checkout query: {e}")
 
 
 async def successful_payment_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Triggered automatically when payment via Telegram Stars succeeds"""
-    payment = update.message.successful_payment
-    user = update.effective_user
-    payload = payment.invoice_payload
+    try:
+        payment = update.message.successful_payment
+        user = update.effective_user
+        payload = payment.invoice_payload
 
-    if payload.startswith("fpay_"):
-        parts = payload.split("_")
-        target_uid = int(parts[1])
-        matched_plan = None
-        for pk, pv in STARS_PLANS.items():
-            if pk in payload:
-                matched_plan = pv
-                break
-        if not matched_plan:
-            matched_plan = {"title": "VIP Premium", "gems": 1.0, "months": 1}
-        plan_title = matched_plan["title"]
-        free_gems = matched_plan.get("gems", 1.0)
-        days = matched_plan.get("months", 1) * 30
-    else:
         target_uid = user.id
-        matched_plan = STARS_PLANS.get(payload, {"title": "VIP Premium", "gems": 1.0, "months": 1})
-        plan_title = matched_plan["title"]
-        free_gems = matched_plan.get("gems", 1.0)
-        days = matched_plan.get("months", 1) * 30
+        free_gems = 1.0
+        days = 30
+        plan_title = "30 Days Miko Premium Access"
 
-    ud = get_user(target_uid)
-    new_gems = round(ud.get("gems", 0.0) + free_gems, 2)
-    update_user(target_uid, premium=True, gems=new_gems)
+        if payload.startswith("fpay_"):
+            parts = payload.split("_")
+            if len(parts) > 1 and parts[1].isdigit():
+                target_uid = int(parts[1])
 
-    text = (
-        f"🎉 <b>ᴍɪᴋᴏ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴛɪᴠᴀᴛᴇᴅ!</b>\n\n"
-        f"👤 <b>Target User ID:</b> <code>{target_uid}</code>\n"
-        f"👑 <b>Plan:</b> {plan_title}\n"
-        f"⭐ <b>Stars Paid:</b> {payment.total_amount} ⭐\n"
-        f"💎 <b>Free Bonus Gems:</b> +{int(free_gems)} 💎\n"
-        f"✨ <b>Total Gems Balance:</b> {new_gems} 💎\n"
-        f"🌟 <b>VIP Status:</b> {days} Days Active\n\n"
-        f"🌟 <i>Premium benefits are active! Check with /pfp or /bal.</i>"
-    )
+            for pk, pv in STARS_PLANS.items():
+                if pk in payload:
+                    plan_title = pv["title"]
+                    free_gems = pv.get("gems", 1.0)
+                    days = pv.get("months", 1) * 30
+                    break
 
-    await update.message.reply_text(text, parse_mode="HTML")
+        ud = get_user(target_uid)
+        new_gems = round(ud.get("gems", 0.0) + free_gems, 2)
+        update_user(target_uid, premium=True, gems=new_gems)
+
+        text = (
+            f"🎉 <b>ᴍɪᴋᴏ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴛɪᴠᴀᴛᴇᴅ!</b>\n\n"
+            f"👤 <b>Target User ID:</b> <code>{target_uid}</code>\n"
+            f"👑 <b>Plan:</b> {plan_title}\n"
+            f"⭐ <b>Stars Paid:</b> {payment.total_amount} ⭐\n"
+            f"💎 <b>Free Bonus Gems:</b> +{int(free_gems)} 💎\n"
+            f"✨ <b>Total Gems Balance:</b> {new_gems} 💎\n"
+            f"🌟 <b>VIP Status:</b> {days} Days Active\n\n"
+            f"🌟 <i>Premium benefits are active! Check with /pfp or /bal.</i>"
+        )
+
+        await update.message.reply_text(text, parse_mode="HTML")
+    except Exception as e:
+        print(f"Error in successful_payment_callback: {e}")
 
 async def claim(update, context):
     chat = update.effective_chat
