@@ -1,2 +1,11 @@
 python-telegram-bot==20.7
 python-dotenv==1.0.0
+redis==7.0.1
+pymongo==3.12.0
+motor==2.5.1
+dnspython==2.7.0
+Pillow
+gTTS
+deep-translator
+sympy
+html2image

@@ -67,23 +67,66 @@ def _migrate(data: Dict[str, Any]) -> Dict[str, Any]:
     return data
 
 
+from modules.utils.db import (
+    db_load_user,
+    db_save_user,
+    db_load_all_users,
+    add_chat,
+    rm_chat,
+    get_chats,
+    add_user_chat,
+    rm_user_chat,
+    get_user_chats,
+)
+
+
 def load_data() -> Dict[str, Any]:
-    if not os.path.exists(DATA_FILE):
-        return {}
-    try:
-        with open(DATA_FILE, "r") as f:
-            data = json.load(f)
-        return _migrate(data)
-    except Exception:
-        return {}
+    # 1. Try local data file
+    data: Dict[str, Any] = {}
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, "r") as f:
+                data = json.load(f)
+        except Exception:
+            data = {}
+
+    # 2. Merge with Mongo if available
+    mongo_users = db_load_all_users()
+    if mongo_users:
+        for uid, udata in mongo_users.items():
+            if uid not in data:
+                data[uid] = udata
+
+    return _migrate(data)
 
 
 def save_data(data: Dict[str, Any]) -> None:
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    try:
+        with open(DATA_FILE, "w") as f:
+            json.dump(data, f, indent=2)
+    except Exception:
+        pass
 
 
 def get_user(user_id: int, username: str = "User", display_name: Optional[str] = None) -> Dict[str, Any]:
+    # 1. Try DB (Redis/Mongo) first
+    user_doc = db_load_user(user_id)
+    if user_doc:
+        changed = False
+        if display_name and user_doc.get("display_name") != display_name:
+            user_doc["display_name"] = display_name
+            if display_name not in user_doc.get("past_names", []):
+                user_doc.setdefault("past_names", []).append(display_name)
+            changed = True
+        if username and username != "User" and user_doc.get("username") != username:
+            user_doc["username"] = username
+            if username not in user_doc.get("past_usernames", []):
+                user_doc.setdefault("past_usernames", []).append(username)
+            changed = True
+        if changed:
+            db_save_user(user_id, user_doc)
+        return user_doc
+
     data = load_data()
     uid = str(user_id)
     if uid not in data:
@@ -98,6 +141,7 @@ def get_user(user_id: int, username: str = "User", display_name: Optional[str] =
             new_user["past_names"] = [username] if username and username != "User" else []
         data[uid] = new_user
         save_data(data)
+        db_save_user(user_id, new_user)
     else:
         changed = False
         if "past_names" not in data[uid]:
@@ -110,25 +154,16 @@ def get_user(user_id: int, username: str = "User", display_name: Optional[str] =
             if data[uid].get("username"):
                 data[uid]["past_usernames"].append(data[uid]["username"])
             changed = True
-
-        if data[uid].get("username") != username:
+        if display_name and data[uid].get("display_name") != display_name:
+            data[uid]["display_name"] = display_name
+            if display_name not in data[uid]["past_names"]:
+                data[uid]["past_names"].append(display_name)
+            changed = True
+        if username and username != "User" and data[uid].get("username") != username:
             data[uid]["username"] = username
-            if username and username != "User" and username not in data[uid]["past_usernames"]:
+            if username not in data[uid]["past_usernames"]:
                 data[uid]["past_usernames"].append(username)
             changed = True
-        elif username and username != "User" and username not in data[uid]["past_usernames"]:
-            data[uid]["past_usernames"].append(username)
-            changed = True
-
-        if display_name:
-            if data[uid].get("display_name") != display_name:
-                data[uid]["display_name"] = display_name
-                if display_name not in data[uid]["past_names"]:
-                    data[uid]["past_names"].append(display_name)
-                changed = True
-            elif display_name not in data[uid]["past_names"]:
-                data[uid]["past_names"].append(display_name)
-                changed = True
         if changed:
             save_data(data)
     return _migrate({uid: data[uid]})[uid]
@@ -141,6 +176,7 @@ def update_user(user_id: int, **kwargs) -> Optional[Dict[str, Any]]:
         for k, v in kwargs.items():
             data[uid][k] = v
         save_data(data)
+        db_save_user(user_id, data[uid])
         return data[uid]
     return None
 

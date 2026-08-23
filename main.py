@@ -67,6 +67,19 @@ async def pfp(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(caption, parse_mode="HTML")
 
 
+from modules.utils.db import add_chat, add_user_chat
+
+
+async def track_chat_activity(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    user = update.effective_user
+    if chat:
+        if chat.type in ("group", "supergroup"):
+            add_chat(chat.id)
+        elif chat.type == "private" and user:
+            add_user_chat(user.id)
+
+
 async def welcome_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
     new_members = getattr(update.message, "new_chat_members", None) or []
     if not new_members:
@@ -517,6 +530,7 @@ def main():
     for cmd_name, fn in handlers.items():
         app.add_handler(CommandHandler(cmd_name, fn))
 
+    app.add_handler(MessageHandler(filters.ALL, track_chat_activity), group=-1)
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_members))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_prefix_command), group=1)
     app.add_handler(CallbackQueryHandler(callback_handler))

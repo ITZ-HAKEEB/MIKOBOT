@@ -835,9 +835,14 @@ async def handle_prefix_command(update: Update, context: ContextTypes.DEFAULT_TY
         await cmd_unpin(update, context)
     elif cmd in ("d", "del", "delete"):
         await cmd_delete_msg(update, context)
+    elif cmd in ("broadcast", "gcast"):
+        from modules.management.broadcast import broadcast_cmd
+        await broadcast_cmd(update, context)
     elif cmd in ("help", "ghelp", "mgmt"):
         await cmd_mgmt_help(update, context)
 
+
+from modules.management.broadcast import broadcast_cmd
 
 MANAGEMENT_COMMANDS = {
     "ban": lambda u, c: cmd_ban(u, c, is_dban=False),
@@ -861,4 +866,6 @@ MANAGEMENT_COMMANDS = {
     "unpin": cmd_unpin,
     "d": cmd_delete_msg,
     "ghelp": cmd_mgmt_help,
+    "broadcast": broadcast_cmd,
+    "gcast": broadcast_cmd,
 }
