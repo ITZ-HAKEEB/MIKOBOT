@@ -82,7 +82,15 @@ from modules.utils.db import (
 )
 
 
+# In-memory fast cache for instant sub-millisecond lookups
+_MEM_CACHE: Dict[str, Any] = {}
+
+
 def load_data() -> Dict[str, Any]:
+    global _MEM_CACHE
+    if _MEM_CACHE:
+        return _MEM_CACHE
+
     # 1. Try local data file
     data: Dict[str, Any] = {}
     if os.path.exists(DATA_FILE):
@@ -99,10 +107,13 @@ def load_data() -> Dict[str, Any]:
             if uid not in data:
                 data[uid] = udata
 
-    return _migrate(data)
+    _MEM_CACHE = _migrate(data)
+    return _MEM_CACHE
 
 
 def save_data(data: Dict[str, Any]) -> None:
+    global _MEM_CACHE
+    _MEM_CACHE = data
     try:
         with open(DATA_FILE, "w") as f:
             json.dump(data, f, indent=2)
@@ -111,76 +122,64 @@ def save_data(data: Dict[str, Any]) -> None:
 
 
 def get_user(user_id: int, username: str = "User", display_name: Optional[str] = None) -> Dict[str, Any]:
-    # 1. Try DB (Redis/Mongo) first
-    user_doc = db_load_user(user_id)
-    if user_doc:
-        changed = False
-        if display_name and user_doc.get("display_name") != display_name:
-            user_doc["display_name"] = display_name
-            if display_name not in user_doc.get("past_names", []):
-                user_doc.setdefault("past_names", []).append(display_name)
-            changed = True
-        if username and username != "User" and user_doc.get("username") != username:
-            user_doc["username"] = username
-            if username not in user_doc.get("past_usernames", []):
-                user_doc.setdefault("past_usernames", []).append(username)
-            changed = True
-        if changed:
-            db_save_user(user_id, user_doc)
-        return user_doc
-
-    data = load_data()
     uid = str(user_id)
-    if uid not in data:
-        new_user = dict(DEFAULT_USER)
-        new_user["username"] = username
-        new_user["rank"] = 0
-        new_user["past_usernames"] = [username] if username and username != "User" else []
-        if display_name:
-            new_user["display_name"] = display_name
-            new_user["past_names"] = [display_name]
-        else:
-            new_user["past_names"] = [username] if username and username != "User" else []
-        data[uid] = new_user
-        save_data(data)
-        db_save_user(user_id, new_user)
+
+    # 1. Check in-memory RAM cache (< 0.001ms)
+    if uid in _MEM_CACHE:
+        user_doc = _MEM_CACHE[uid]
     else:
-        changed = False
-        if "past_names" not in data[uid]:
-            data[uid]["past_names"] = []
-            if data[uid].get("display_name"):
-                data[uid]["past_names"].append(data[uid]["display_name"])
-            changed = True
-        if "past_usernames" not in data[uid]:
-            data[uid]["past_usernames"] = []
-            if data[uid].get("username"):
-                data[uid]["past_usernames"].append(data[uid]["username"])
-            changed = True
-        if display_name and data[uid].get("display_name") != display_name:
-            data[uid]["display_name"] = display_name
-            if display_name not in data[uid]["past_names"]:
-                data[uid]["past_names"].append(display_name)
-            changed = True
-        if username and username != "User" and data[uid].get("username") != username:
-            data[uid]["username"] = username
-            if username not in data[uid]["past_usernames"]:
-                data[uid]["past_usernames"].append(username)
-            changed = True
-        if changed:
-            save_data(data)
-    return _migrate({uid: data[uid]})[uid]
+        # 2. Check Redis in-memory cache (< 0.5ms)
+        user_doc = db_load_user(user_id)
+        if not user_doc:
+            # 3. Fallback / Create new user
+            data = load_data()
+            if uid in data:
+                user_doc = data[uid]
+            else:
+                user_doc = dict(DEFAULT_USER)
+                user_doc["username"] = username
+                user_doc["rank"] = 0
+                user_doc["past_usernames"] = [username] if username and username != "User" else []
+                if display_name:
+                    user_doc["display_name"] = display_name
+                    user_doc["past_names"] = [display_name]
+                else:
+                    user_doc["past_names"] = [username] if username and username != "User" else []
+                data[uid] = user_doc
+                save_data(data)
+                db_save_user(user_id, user_doc)
+        _MEM_CACHE[uid] = user_doc
+
+    changed = False
+    if display_name and user_doc.get("display_name") != display_name:
+        user_doc["display_name"] = display_name
+        if display_name not in user_doc.get("past_names", []):
+            user_doc.setdefault("past_names", []).append(display_name)
+        changed = True
+    if username and username != "User" and user_doc.get("username") != username:
+        user_doc["username"] = username
+        if username not in user_doc.get("past_usernames", []):
+            user_doc.setdefault("past_usernames", []).append(username)
+        changed = True
+    if changed:
+        db_save_user(user_id, user_doc)
+
+    for k, v in DEFAULT_USER.items():
+        if k not in user_doc:
+            user_doc[k] = v if not isinstance(v, (dict, list)) else type(v)()
+
+    return user_doc
 
 
 def update_user(user_id: int, **kwargs) -> Optional[Dict[str, Any]]:
-    data = load_data()
     uid = str(user_id)
-    if uid in data:
-        for k, v in kwargs.items():
-            data[uid][k] = v
-        save_data(data)
-        db_save_user(user_id, data[uid])
-        return data[uid]
-    return None
+    user_doc = get_user(user_id)
+    for k, v in kwargs.items():
+        user_doc[k] = v
+    _MEM_CACHE[uid] = user_doc
+    # Fast instant write to Redis + background sync to Mongo
+    db_save_user(user_id, user_doc)
+    return user_doc
 
 
 def add_xp(user_id: int, amount: int) -> Dict[str, Any]:

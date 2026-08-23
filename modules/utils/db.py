@@ -185,24 +185,33 @@ def db_load_user(user_id: int) -> Optional[Dict[str, Any]]:
     return None
 
 
+from concurrent.futures import ThreadPoolExecutor
+
+_db_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="miko_db_sync")
+
+
+def _async_mongo_save_user(uid: str, doc: dict):
+    if _mongo_db is not None:
+        try:
+            _mongo_db.users.update_one({"_id": uid}, {"$set": doc}, upsert=True)
+        except Exception:
+            pass
+
+
 def db_save_user(user_id: int, udata: Dict[str, Any]) -> None:
     uid = str(user_id)
     serialized = json.dumps(udata)
 
-    # 1. Save to Redis
+    # 1. Save to Redis (instant in-memory write < 0.5ms)
     if _redis_client:
         try:
-            _redis_client.set(f"miko:user:{uid}", serialized, ex=86400)
+            _redis_client.set(f"miko:user:{uid}", serialized, ex=86400 * 7)
         except Exception:
             pass
 
-    # 2. Save to Mongo
-    if _mongo_db is not None:
-        try:
-            doc = dict(udata)
-            _mongo_db.users.update_one({"_id": uid}, {"$set": doc}, upsert=True)
-        except Exception:
-            pass
+    # 2. Async background sync to Mongo (zero command lag)
+    doc = dict(udata)
+    _db_pool.submit(_async_mongo_save_user, uid, doc)
 
 
 def db_load_all_users() -> Dict[str, Dict[str, Any]]:
