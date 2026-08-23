@@ -663,7 +663,7 @@ def main():
     app.add_handler(CallbackQueryHandler(callback_handler))
 
     print("🤖 ᴍɪᴋᴏ ʙᴏᴛ ɪꜱ ʀᴜɴɴɪɴɢ...")
-    app.run_polling()
+    app.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
 
 
 if __name__ == "__main__":

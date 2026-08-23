@@ -250,9 +250,15 @@ async def pre_checkout_callback(update: Update, context: ContextTypes.DEFAULT_TY
     """Answer Telegram Stars pre-checkout query"""
     query = update.pre_checkout_query
     try:
+        print(f"⭐ [STARS] Received pre_checkout_query from user {query.from_user.id} ({query.from_user.first_name}) | Payload: {query.invoice_payload}")
         await query.answer(ok=True)
+        print("⭐ [STARS] PreCheckoutQuery answered ok=True successfully!")
     except Exception as e:
-        print(f"Error answering pre-checkout query: {e}")
+        print(f"❌ [STARS] Error answering pre-checkout query: {e}")
+        try:
+            await query.answer(ok=False, error_message="Could not process checkout. Please try again.")
+        except Exception:
+            pass
 
 
 async def successful_payment_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -261,6 +267,7 @@ async def successful_payment_callback(update: Update, context: ContextTypes.DEFA
         payment = update.message.successful_payment
         user = update.effective_user
         payload = payment.invoice_payload
+        print(f"🎉 [STARS] SUCCESSFUL PAYMENT from {user.id} ({user.first_name}) | Amount: {payment.total_amount} Stars | Payload: {payload}")
 
         target_uid = user.id
         free_gems = 1.0
@@ -295,8 +302,9 @@ async def successful_payment_callback(update: Update, context: ContextTypes.DEFA
         )
 
         await update.message.reply_text(text, parse_mode="HTML")
+        print(f"🎉 [STARS] Premium credited and confirmation sent to {target_uid}!")
     except Exception as e:
-        print(f"Error in successful_payment_callback: {e}")
+        print(f"❌ [STARS] Error in successful_payment_callback: {e}")
 
 async def claim(update, context):
     chat = update.effective_chat
