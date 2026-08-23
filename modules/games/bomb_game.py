@@ -259,10 +259,7 @@ def render_leaders_message(game_key: str = "card"):
         stats = uinfo.get(f"{game_key}_stats") or {}
         won = stats.get("won", 0)
         lost = stats.get("lost", 0)
-        profit = won - lost
-        if profit <= 0:
-            profit = uinfo.get("balance", 0)
-        return profit
+        return int(won - lost)
 
     sorted_users = sorted(
         data.items(),

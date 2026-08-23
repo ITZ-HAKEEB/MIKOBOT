@@ -273,3 +273,32 @@ def save_featured_groups(groups: List[Dict[str, Any]]) -> None:
             json.dump({"groups": groups}, f, indent=2)
     except Exception:
         pass
+
+
+def record_game_stat(user_id: int, game_key: str, won_amount: int = 0, lost_amount: int = 0, is_win: bool = True):
+    ud = get_user(user_id)
+    stats_key = f"{game_key}_stats"
+    stats = ud.get(stats_key) or {}
+    if not isinstance(stats, dict):
+        stats = {}
+
+    current_wins = stats.get("wins", 0) + (1 if is_win else 0)
+    current_losses = stats.get("losses", 0) + (0 if is_win else 1)
+    current_won = stats.get("won", 0) + won_amount
+    current_lost = stats.get("lost", 0) + lost_amount
+
+    streak = stats.get("streak", 0)
+    if is_win:
+        streak += 1
+    else:
+        streak = 0
+    max_streak = max(stats.get("max_streak", 0), streak)
+
+    stats["wins"] = current_wins
+    stats["losses"] = current_losses
+    stats["won"] = current_won
+    stats["lost"] = current_lost
+    stats["streak"] = streak
+    stats["max_streak"] = max_streak
+
+    update_user(user_id, **{stats_key: stats})
