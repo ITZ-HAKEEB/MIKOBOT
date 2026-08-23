@@ -64,6 +64,7 @@ def generate_quote_sticker(
     text_color: str = "#FFFFFF",
     author_color: str = "#FF79C6",
     font_style: str = "normal",
+    shape: str = "classic",
 ) -> io.BytesIO:
     # Load high-definition fonts (Bold for author name, Regular/Normal for message text)
     font_bold_path = "assets/fonts/Roboto-Bold.ttf"
@@ -129,18 +130,20 @@ def generate_quote_sticker(
         b = dummy_draw.textbbox((0, 0), l, font=font_text)
         content_w = max(content_w, b[2] - b[0])
 
-    pad_left = 36
-    pad_right = 72
-    pad_top = 26
-    pad_bottom = 28
+    is_cloud = shape in ("cloud", "cloudy")
 
-    bubble_w = max(int(content_w + pad_left + pad_right), 320)
+    pad_left = 44 if is_cloud else 36
+    pad_right = 78 if is_cloud else 72
+    pad_top = 34 if is_cloud else 26
+    pad_bottom = 34 if is_cloud else 28
+
+    bubble_w = max(int(content_w + pad_left + pad_right), 330 if is_cloud else 320)
     bubble_h = int(name_h + 18 + text_total_h + pad_top + pad_bottom)
 
     avatar_size = 104
     bottom_clearance = 36  # Transparent elevation above Telegram timestamp
 
-    total_w = avatar_size + 18 + bubble_w + 20
+    total_w = avatar_size + 24 + bubble_w + 24
     total_h = max(avatar_size + 20, bubble_h + 20) + bottom_clearance
 
     img = Image.new("RGBA", (int(total_w), int(total_h)), (0, 0, 0, 0))
@@ -175,17 +178,40 @@ def generate_quote_sticker(
             font=font_name,
         )
 
-    bx = av_x + avatar_size + 14
+    bx = av_x + avatar_size + (18 if is_cloud else 14)
     by = total_h - bubble_h - bottom_clearance - 10
-    draw.rounded_rectangle([(bx, by), (bx + bubble_w, by + bubble_h)], radius=26, fill=bg_rgb)
 
-    # Sleek dialogue tail pointing towards the avatar
-    tail = [
-        (bx + 4, by + bubble_h - 28),
-        (bx - 14, by + bubble_h - 8),
-        (bx + 22, by + bubble_h),
-    ]
-    draw.polygon(tail, fill=bg_rgb)
+    if is_cloud:
+        # Puffy Cloud dialogue bubble
+        draw.rounded_rectangle([(bx + 14, by + 14), (bx + bubble_w - 14, by + bubble_h - 14)], radius=24, fill=bg_rgb)
+
+        num_x = max(3, int(bubble_w / 50))
+        step_x = (bubble_w - 30) / num_x
+        for i in range(num_x + 1):
+            cx = bx + 15 + i * step_x
+            draw.ellipse([(cx - 24, by - 14), (cx + 24, by + 34)], fill=bg_rgb)
+            draw.ellipse([(cx - 24, by + bubble_h - 34), (cx + 24, by + bubble_h + 14)], fill=bg_rgb)
+
+        num_y = max(2, int(bubble_h / 50))
+        step_y = (bubble_h - 30) / num_y
+        for j in range(num_y + 1):
+            cy = by + 15 + j * step_y
+            draw.ellipse([(bx - 16, cy - 22), (bx + 32, cy + 22)], fill=bg_rgb)
+            draw.ellipse([(bx + bubble_w - 32, cy - 22), (bx + bubble_w + 16, cy + 22)], fill=bg_rgb)
+
+        # Cloud thought bubbles leading to avatar
+        draw.ellipse([(bx - 10, by + bubble_h - 12), (bx + 16, by + bubble_h + 14)], fill=bg_rgb)
+        draw.ellipse([(bx - 22, by + bubble_h + 8), (bx - 4, by + bubble_h + 26)], fill=bg_rgb)
+        draw.ellipse([(bx - 32, by + bubble_h + 22), (bx - 18, by + bubble_h + 36)], fill=bg_rgb)
+    else:
+        # Classic dialogue bubble
+        draw.rounded_rectangle([(bx, by), (bx + bubble_w, by + bubble_h)], radius=26, fill=bg_rgb)
+        tail = [
+            (bx + 4, by + bubble_h - 28),
+            (bx - 14, by + bubble_h - 8),
+            (bx + 22, by + bubble_h),
+        ]
+        draw.polygon(tail, fill=bg_rgb)
 
     # User's name in BOLD
     draw.text((bx + pad_left, by + pad_top), author_name, fill=author_rgb, font=font_name)
@@ -212,12 +238,18 @@ def generate_quote_sticker(
 
 
 # ---------------------------------------------------------
-# Telegram Bot Command Handler (/q)
+# Telegram Bot Command Handler (/q, /qc, /cloudq)
 # ---------------------------------------------------------
 async def q_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     replied = update.message.reply_to_message
     if not replied:
-        await update.message.reply_text("💬 Reply to a message to quote it into a sticker: /q")
+        await update.message.reply_text(
+            "💬 <b>Qᴜᴏᴛᴇ Sᴛɪᴄᴋᴇʀ Uꜱᴀɢᴇ:</b>\n\n"
+            "👉 Reply to a message with <code>/q</code> (Classic Bubble)\n"
+            "👉 Reply with <code>/q cloud</code> or <code>/qc</code> (Cloudy Bubble)\n"
+            "👉 Custom colors: <code>/q pink</code>, <code>/qc blue</code>, <code>/q #FF007F</code>",
+            parse_mode="HTML",
+        )
         return
 
     target_user = replied.from_user or update.effective_user
@@ -249,6 +281,9 @@ async def q_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     author_color = "#FF79C6"
     font_style = "normal"
 
+    cmd_name = update.message.text.split()[0].lstrip("/").split("@")[0].lower() if update.message and update.message.text else ""
+    shape = "cloud" if cmd_name in ("qc", "cloudq", "qcloud") else "classic"
+
     args = [a.lower().strip() for a in (context.args or [])]
     for a in args:
         if a in COLOR_PRESETS:
@@ -269,6 +304,10 @@ async def q_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text = to_small_caps(text)
         elif a in ("mono", "code", "italic", "cursive", "serif"):
             font_style = a
+        elif a in ("cloud", "cloudy"):
+            shape = "cloud"
+        elif a in ("classic", "normal", "rect", "box"):
+            shape = "classic"
 
     sticker_buf = generate_quote_sticker(
         text,
@@ -278,5 +317,6 @@ async def q_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text_color=text_color,
         author_color=author_color,
         font_style=font_style,
+        shape=shape,
     )
     await update.message.reply_sticker(sticker=sticker_buf)
