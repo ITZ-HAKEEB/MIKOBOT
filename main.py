@@ -27,6 +27,7 @@ from modules.games.commands import HANDLERS as GAME_HANDLERS
 from modules.social.commands import HANDLERS as SOCIAL_HANDLERS
 from modules.premium.commands import HANDLERS as PREM_HANDLERS
 from modules.management.commands import MANAGEMENT_COMMANDS, handle_prefix_command
+from modules.ai.chatbot import dm_chatbot_handler
 
 
 async def pfp(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -533,6 +534,7 @@ def main():
     app.add_handler(MessageHandler(filters.ALL, track_chat_activity), group=-1)
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_members))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_prefix_command), group=1)
+    app.add_handler(MessageHandler(filters.ChatType.PRIVATE & filters.TEXT & ~filters.COMMAND, dm_chatbot_handler), group=2)
     app.add_handler(CallbackQueryHandler(callback_handler))
 
     print("🤖 ᴍɪᴋᴏ ʙᴏᴛ ɪꜱ ʀᴜɴɴɪɴɢ...")
