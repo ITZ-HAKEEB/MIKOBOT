@@ -13,7 +13,14 @@ from gtts import gTTS
 from deep_translator import GoogleTranslator
 import sympy
 import html2image
-from telegram import Update, User, ChatMemberAdministrator, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import (
+    Update,
+    User,
+    ChatMemberAdministrator,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+    InputSticker,
+)
 from telegram.ext import ContextTypes
 
 _hti = None
@@ -1465,7 +1472,92 @@ async def setintro(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def own(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("⚠️ Reply To A Sticker To Add In Your Pack.")
+    replied = update.message.reply_to_message if update.message else None
+    if not replied or not replied.sticker:
+        await update.message.reply_text("⚠️ Rᴇᴘʟʏ Tᴏ A Sᴛɪᴄᴋᴇʀ Tᴏ Aᴅᴅ Iɴ Yᴏᴜʀ Pᴀᴄᴋ.")
+        return
+
+    user = update.effective_user
+    bot = context.bot
+    bot_info = await bot.get_me()
+    bot_username = bot_info.username
+
+    src_sticker = replied.sticker
+
+    # Determine format
+    if src_sticker.is_animated:
+        st_format = "animated"
+        type_label = "Aɴɪᴍᴀᴛᴇᴅ"
+        pack_suffix = f"anim_{user.id}"
+    elif src_sticker.is_video:
+        st_format = "video"
+        type_label = "Vɪᴅᴇᴏ"
+        pack_suffix = f"vid_{user.id}"
+    else:
+        st_format = "static"
+        type_label = "Sᴛᴀᴛɪᴄ"
+        pack_suffix = f"static_{user.id}"
+
+    pack_name = f"miko_{pack_suffix}_by_{bot_username}"
+    pack_title = f"{user.first_name}'s Miko {type_label} Pack"
+    emoji = src_sticker.emoji or "✨"
+
+    wait_msg = await update.message.reply_text("⏳ <i>Processing sticker...</i>", parse_mode="HTML")
+
+    try:
+        input_sticker = InputSticker(
+            sticker=src_sticker.file_id,
+            emoji_list=[emoji],
+            format=st_format,
+        )
+
+        pack_exists = False
+        try:
+            await bot.get_sticker_set(name=pack_name)
+            pack_exists = True
+        except Exception:
+            pack_exists = False
+
+        if pack_exists:
+            await bot.add_sticker_to_set(
+                user_id=user.id,
+                name=pack_name,
+                sticker=input_sticker,
+            )
+            resp_text = (
+                f"✨ <b>Sᴛɪᴄᴋᴇʀ Aᴅᴅᴇᴅ Tᴏ Yᴏᴜʀ {type_label} Pᴀᴄᴋ!</b>\n\n"
+                f"⚡️ <b>Iᴛ Cᴀɴ Tᴀᴋᴇ 2-3 Mɪɴꜱ Tᴏ Rᴇꜰʟᴇᴄᴛ.</b>"
+            )
+        else:
+            await bot.create_new_sticker_set(
+                user_id=user.id,
+                name=pack_name,
+                title=pack_title,
+                stickers=[input_sticker],
+                sticker_format=st_format,
+            )
+            resp_text = (
+                f"✨ <b>Nᴇᴡ {type_label} Pᴀᴄᴋ Cʀᴇᴀᴛᴇᴅ &amp; Sᴛɪᴄᴋᴇʀ Sᴀᴠᴇᴅ!</b>\n\n"
+                f"⚡️ <b>Iᴛ Cᴀɴ Tᴀᴋᴇ 2-3 Mɪɴꜱ Tᴏ Rᴇꜰʟᴇᴄᴛ.</b>"
+            )
+
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("👉 Oᴘᴇɴ Sᴛɪᴄᴋᴇʀ Pᴀᴄᴋ", url=f"https://t.me/addstickers/{pack_name}")]
+        ])
+        await wait_msg.edit_text(resp_text, parse_mode="HTML", reply_markup=kb)
+    except Exception as e:
+        err_str = str(e)
+        if "PEER_ID_INVALID" in err_str or "USER_NOT_MUTUAL_CONTACT" in err_str or "bot can't initiate conversation" in err_str.lower():
+            kb = InlineKeyboardMarkup([
+                [InlineKeyboardButton("💬 Start Miko In PM", url=f"https://t.me/{bot_username}?start=start")]
+            ])
+            await wait_msg.edit_text(
+                "⚠️ <b>Pʟᴇᴀꜱᴇ ꜱᴛᴀʀᴛ Mɪᴋᴏ ɪɴ PM ꜰɪʀꜱᴛ ᴛᴏ ᴄʀᴇᴀᴛᴇ ʏᴏᴜʀ ᴏᴡɴ ᴘᴀᴄᴋ!</b>",
+                parse_mode="HTML",
+                reply_markup=kb,
+            )
+        else:
+            await wait_msg.edit_text(f"❌ Error: {e}")
 
 
 async def open_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
