@@ -82,7 +82,7 @@ async def cmd_bluff(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
 
     text = (
-        "🎭 <b>Bᴀᴋᴀ Bʟᴜꜰꜰ Gᴀᴍᴇ Sᴛᴀʀᴛᴇᴅ.</b>\n\n"
+        "🎭 <b>Mɪᴋᴏ Bʟᴜꜰꜰ Gᴀᴍᴇ Sᴛᴀʀᴛᴇᴅ.</b>\n\n"
         f"💰 <b>Eɴᴛʀʏ Fᴇᴇ:</b> {amount}\n"
         f"👥 <b>Pʟᴀʏᴇʀꜱ:</b> {disp_players}\n"
         f"👉 Uꜱᴇ <code>/enter {amount} gems/coins</code>\n"

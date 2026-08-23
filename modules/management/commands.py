@@ -543,7 +543,7 @@ async def cmd_demote_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     gdata["baka_promoted"] = []
     _save_group_mgmt(chat.id, gdata)
-    await update.message.reply_text(f"🔽 Demoted {count} Baka-promoted admins!")
+    await update.message.reply_text(f"🔽 Demoted {count} Miko-promoted admins!")
 
 
 async def cmd_title(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -752,7 +752,7 @@ async def cmd_mgmt_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "<code>.remove &lt;user&gt; &lt;power&gt;</code> - remove given power for an admin\n\n"
         "<code>.promote &lt;user&gt; 0/1/2/3</code> - Promote user to admin\n"
         "<code>.demote &lt;user&gt;</code> - Demote admin\n\n"
-        "<code>.demote_all</code> - demote all baka promoted admins\n\n"
+        "<code>.demote_all</code> - demote all miko promoted admins\n\n"
         "<code>.title &lt;user&gt; &lt;title&gt;</code> - Set custom title\n\n"
         "<code>.warns &lt;user&gt;</code> - Get all warnings\n"
         "<code>.warn &lt;user&gt;</code> - Warn a user (3 = ban)\n"

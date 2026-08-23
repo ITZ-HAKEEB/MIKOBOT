@@ -198,7 +198,7 @@ async def gems(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ],
     ])
     text = (
-        "<b>KNOW ABOUT BAKA GEMS 💎</b>\n\n"
+        "<b>KNOW ABOUT MIKO GEMS 💎</b>\n\n"
         "1 gem = $10000 coins = ₹8\n"
         "Check your gems : /pfp\n\n"
         "1) you can convert miko gems into coins using /convert command - only premium users can convert miko gems into coins.\n\n"

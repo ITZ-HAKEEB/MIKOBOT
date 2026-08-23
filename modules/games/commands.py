@@ -63,10 +63,10 @@ async def puzzle(update, context):
 
 async def game_menu(update, context):
     kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🧚 Open Baka Mini Games", url="https://t.me/i_mikoo/3")]
+        [InlineKeyboardButton("🧚 Open Miko Mini Games", url="https://t.me/i_mikoo/3")]
     ])
     await update.message.reply_text(
-        "🎮 Cʟɪᴄᴋ Tʜᴇ Bᴜᴛᴛᴏɴ Bᴇʟᴏᴡ Tᴏ Kɴᴏᴡ Aʙᴏᴜᴛ Bᴀᴋᴀ Mɪɴɪ Gᴀᴍᴇꜱ.",
+        "🎮 Cʟɪᴄᴋ Tʜᴇ Bᴜᴛᴛᴏɴ Bᴇʟᴏᴡ Tᴏ Kɴᴏᴡ Aʙᴏᴜᴛ Mɪᴋᴏ Mɪɴɪ Gᴀᴍᴇꜱ.",
         reply_markup=kb,
     )
 

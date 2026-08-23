@@ -98,7 +98,7 @@ async def welcome_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE
                 "💓 Cʟᴏꜱᴇ Gᴀᴍɪɴɢ Cᴏᴍᴍᴀɴᴅꜱ: /close\n"
                 "💓 Rᴇᴏᴘᴇɴ Gᴀᴍɪɴɢ Cᴏᴍᴍᴀɴᴅꜱ : /open\n"
                 "💓 Eᴄᴏɴᴏᴍʏ Cᴏᴍᴍᴀɴᴅꜱ : /economy\n"
-                "💓 Aʟʟ Bᴀᴋᴀ Gᴀᴍᴇꜱ : /game</b>"
+                "💓 Aʟʟ Mɪᴋᴏ Gᴀᴍᴇꜱ : /game</b>"
             )
             await update.message.reply_text(bot_add_msg, parse_mode="HTML")
             return
@@ -125,7 +125,7 @@ async def on_my_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "💓 Cʟᴏꜱᴇ Gᴀᴍɪɴɢ Cᴏᴍᴍᴀɴᴅꜱ: /close\n"
             "💓 Rᴇᴏᴘᴇɴ Gᴀᴍɪɴɢ Cᴏᴍᴍᴀɴᴅꜱ : /open\n"
             "💓 Eᴄᴏɴᴏᴍʏ Cᴏᴍᴍᴀɴᴅꜱ : /economy\n"
-            "💓 Aʟʟ Bᴀᴋᴀ Gᴀᴍᴇꜱ : /game</b>"
+            "💓 Aʟʟ Mɪᴋᴏ Gᴀᴍᴇꜱ : /game</b>"
         )
         try:
             await context.bot.send_message(chat_id=chat.id, text=bot_add_msg, parse_mode="HTML")
@@ -292,8 +292,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if data == "miko_features":
         text = (
-            "ℹ️ <b>ABOUT BAKA</b>\n\n"
-            "CLICK THE BUTTONS BELOW TO KNOW MORE ABOUT BAKA FEATURES."
+            "ℹ️ <b>ABOUT MIKO</b>\n\n"
+            "CLICK THE BUTTONS BELOW TO KNOW MORE ABOUT MIKO FEATURES."
         )
         keyboard = InlineKeyboardMarkup([
             [
@@ -429,7 +429,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🕹 <b>GAMES SYSTEM</b>\n\n"
             "Multiplayer interactive mini games:\n"
             "• <code>/hack &lt;amount&gt; &lt;players&gt;</code> — Group Hack Game\n"
-            "• <code>/bluff &lt;amount&gt; &lt;players&gt;</code> — Baka Bluff Card Game\n"
+            "• <code>/bluff &lt;amount&gt; &lt;players&gt;</code> — Miko Bluff Card Game\n"
             "• <code>/bomb &lt;stake&gt;</code> — Defuse the bomb tiles\n"
             "• <code>/roulette &lt;amount&gt;</code> — Russian Roulette Game\n"
             "• <code>/card</code> — Guess high/low card game\n"
@@ -481,7 +481,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if data == "groups":
         text = (
-            "👥 <b>ᴊᴏɪɴ ᴛʜᴇꜱᴇ ɢʀᴏᴜᴘꜱ ᴛᴏ ᴘʟᴀʏ ʙᴀᴋᴀ ɢᴀᴍᴇꜱ.</b>\n\n"
+            "👥 <b>ᴊᴏɪɴ ᴛʜᴇꜱᴇ ɢʀᴏᴜᴘꜱ ᴛᴏ ᴘʟᴀʏ ᴍɪᴋᴏ ɢᴀᴍᴇꜱ.</b>\n\n"
             "👉 <b>ᴏɴʟʏ ᴛʜᴇ ᴛᴏᴘ 5 ɢʟᴏʙᴀʟʟʏ ʀɪᴄʜᴇꜱᴛ ᴜꜱᴇʀꜱ ᴄᴀɴ ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ ᴛᴏ ꜱᴇᴛ ᴛʜᴇɪʀ ɢʀᴏᴜᴘ ʜᴇʀᴇ ᴜꜱᴇ :</b> /setgroup"
         )
         from modules.utils.storage import get_featured_groups
@@ -514,7 +514,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "games":
         text = (
             "🎮 <b>ᴍɪᴋᴏ ɢᴀᴍᴇ ꜰᴇᴀᴛᴜʀᴇꜱ</b>\n\n"
-            "ᴋɴᴏᴡ ᴀʙᴏᴜᴛ ᴛʜᴇ ʙᴀᴋᴀ ᴍɪɴɪ ɢᴀᴍᴇꜱ: /game\n"
+            "ᴋɴᴏᴡ ᴀʙᴏᴜᴛ ᴛʜᴇ ᴍɪᴋᴏ ᴍɪɴɪ ɢᴀᴍᴇꜱ: /game\n"
             "ᴋɴᴏᴡ ᴀʙᴏᴜᴛ ᴛʜᴇ ᴇᴄᴏɴᴏᴍʏ ꜱʏꜱᴛᴇᴍ: /economy\n\n"
             "ʜᴀᴠᴇ ꜰᴜɴ ᴀɴᴅ ʙᴇ ʟᴜᴄᴋʏ🍀"
         )

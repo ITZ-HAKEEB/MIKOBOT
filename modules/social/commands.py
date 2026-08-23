@@ -1600,7 +1600,7 @@ async def close_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = "🍀 Tᴀᴘ Tʜᴇ Bᴜᴛᴛᴏɴ Bᴇʟᴏᴡ Tᴏ Gᴇᴛ Sᴏᴍᴇ Aᴍᴀᴢɪɴɢ Bᴀᴋᴀ'S Gʀᴏᴜᴘ Mᴀɴᴀɢᴇᴍᴇɴᴛ Cᴏᴍᴍᴀɴᴅꜱ."
+    text = "🍀 Tᴀᴘ Tʜᴇ Bᴜᴛᴛᴏɴ Bᴇʟᴏᴡ Tᴏ Gᴇᴛ Sᴏᴍᴇ Aᴍᴀᴢɪɴɢ Mɪᴋᴏ'S Gʀᴏᴜᴘ Mᴀɴᴀɢᴇᴍᴇɴᴛ Cᴏᴍᴍᴀɴᴅꜱ."
     kb = InlineKeyboardMarkup([
         [InlineKeyboardButton("📩 Cʟɪᴄᴋ Hᴇʀᴇ Fᴏʀ Cᴏᴍᴍᴀɴᴅ Lɪꜱᴛ", url="https://t.me/i_mikoo/9")]
     ])
