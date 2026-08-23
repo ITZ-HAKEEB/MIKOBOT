@@ -5,7 +5,7 @@ from typing import Dict, Any
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from modules.utils.storage import get_user, update_user, POWERS_CATALOG
+from modules.utils.storage import get_user, update_user, get_group, update_group, POWERS_CATALOG
 
 
 def _cs(cmd, desc=""):
@@ -136,17 +136,34 @@ async def claim(update, context):
         await update.message.reply_text("🚫 Tʜɪꜱ Gʀᴏᴜᴘ Nᴇᴇᴅꜱ Aᴛ Lᴇᴀꜱᴛ 500 Mᴇᴍʙᴇʀꜱ Tᴏ Cʟᴀɪᴍ Rᴇᴡᴀʀᴅ.")
         return
 
+    gdata = get_group(chat.id)
+    today_str = datetime.now().strftime("%Y-%m-%d")
+
+    if gdata.get("last_claim_date") == today_str:
+        claimed_by = gdata.get("claimed_by_name") or "𓍯 𝗖ֹ︩︪𝗮𝗳𝗳𝗶𝗻."
+        await update.message.reply_text(
+            f"🚫 Tʜɪꜱ Gʀᴏᴜᴘ Rᴇᴡᴀʀᴅ Hᴀꜱ Aʟʀᴇᴀᴅʏ Bᴇᴇɴ Cʟᴀɪᴍᴇᴅ Bʏ: {claimed_by}"
+        )
+        return
+
     user = update.effective_user
     ud = get_user(user.id, user.username or user.first_name or "User", user.first_name)
-    if ud.get("claimed_group_bonus"):
-        await update.message.reply_text("🎁 You already claimed the group bonus!")
-        return
+    claimer_name = ud.get("display_name") or (user.first_name or user.username or "User")
+
     reward = 10000
-    update_user(user.id, balance=ud["balance"] + reward, claimed_group_bonus=True)
+    update_user(user.id, balance=ud["balance"] + reward)
+    update_group(
+        chat.id,
+        last_claim_date=today_str,
+        claimed_by_name=claimer_name,
+        claimed_by_id=user.id,
+    )
+
     await update.message.reply_text(
-        f"🎁 CLAIMED! +${reward} added to your balance!\n"
+        f"🎁 <b>CLAIMED! +${reward:,} added to your balance!</b>\n"
         f"Conditions: add Miko to a group with 500+ members.\n"
-        f"New balance: ${ud['balance'] + reward}"
+        f"💰 <b>New balance:</b> ${ud['balance'] + reward:,}",
+        parse_mode="HTML",
     )
 
 

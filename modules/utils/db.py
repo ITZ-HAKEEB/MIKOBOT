@@ -277,3 +277,44 @@ def is_sudo_user(user_id: int) -> bool:
         return True
     return user_id in get_sudo_users()
 
+
+# --- GROUP SETTINGS DUAL LAYER ---
+
+def db_load_group(chat_id: int) -> Optional[Dict[str, Any]]:
+    cid = str(chat_id)
+    if _redis_client:
+        try:
+            val = _redis_client.get(f"miko:group:{cid}")
+            if val:
+                return json.loads(val)
+        except Exception:
+            pass
+    if _mongo_db is not None:
+        try:
+            doc = _mongo_db.groups.find_one({"_id": cid})
+            if doc:
+                doc.pop("_id", None)
+                if _redis_client:
+                    _redis_client.set(f"miko:group:{cid}", json.dumps(doc), ex=86400)
+                return doc
+        except Exception:
+            pass
+    return None
+
+
+def db_save_group(chat_id: int, gdata: Dict[str, Any]) -> None:
+    cid = str(chat_id)
+    serialized = json.dumps(gdata)
+    if _redis_client:
+        try:
+            _redis_client.set(f"miko:group:{cid}", serialized, ex=86400)
+        except Exception:
+            pass
+    if _mongo_db is not None:
+        try:
+            doc = dict(gdata)
+            _mongo_db.groups.update_one({"_id": cid}, {"$set": doc}, upsert=True)
+        except Exception:
+            pass
+
+

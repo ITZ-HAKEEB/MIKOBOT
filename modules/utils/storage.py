@@ -71,6 +71,8 @@ from modules.utils.db import (
     db_load_user,
     db_save_user,
     db_load_all_users,
+    db_load_group,
+    db_save_group,
     add_chat,
     rm_chat,
     get_chats,
@@ -222,11 +224,15 @@ def save_group_settings(data: Dict[str, Any]) -> None:
 
 
 def get_group(chat_id: int) -> Dict[str, Any]:
+    db_data = db_load_group(chat_id)
+    if db_data is not None:
+        return db_data
     settings = load_group_settings()
     cid = str(chat_id)
     if cid not in settings:
         settings[cid] = {"economy_enabled": True}
         save_group_settings(settings)
+    db_save_group(chat_id, settings[cid])
     return settings[cid]
 
 
@@ -235,9 +241,13 @@ def update_group(chat_id: int, **kwargs) -> Dict[str, Any]:
     cid = str(chat_id)
     if cid not in settings:
         settings[cid] = {"economy_enabled": True}
+    db_data = db_load_group(chat_id)
+    if db_data:
+        settings[cid].update(db_data)
     for k, v in kwargs.items():
         settings[cid][k] = v
     save_group_settings(settings)
+    db_save_group(chat_id, settings[cid])
     return settings[cid]
 
 
