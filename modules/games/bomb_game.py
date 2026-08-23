@@ -247,22 +247,67 @@ async def cmd_bombcancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def cmd_leaders(update: Update, context: ContextTypes.DEFAULT_TYPE):
+LEADERS_ICONS = ["🗣️", "🦁", "🧜", "🥷", "🥀", "🌸", "🐱", "🇵🇰", "💗", "👤"]
+
+
+def render_leaders_message(game_key: str = "card"):
     from modules.utils.storage import get_all_users
     data = get_all_users()
+    info = GAME_RANK_CONFIG.get(game_key, GAME_RANK_CONFIG["card"])
+
+    def _user_profit(uid, uinfo):
+        stats = uinfo.get(f"{game_key}_stats") or {}
+        won = stats.get("won", 0)
+        lost = stats.get("lost", 0)
+        profit = won - lost
+        if profit <= 0:
+            profit = uinfo.get("balance", 0)
+        return profit
+
     sorted_users = sorted(
         data.items(),
-        key=lambda x: x[1].get("bomb_wins", 0),
+        key=lambda x: _user_profit(x[0], x[1]),
         reverse=True
     )[:10]
 
-    lines = ["💣 <b>Bᴏᴍʙ Gᴀᴍᴇ Lᴇᴀᴅᴇʀʙᴏᴀʀᴅ</b>\n"]
-    for idx, (uid, info) in enumerate(sorted_users, 1):
-        name = info.get("display_name") or info.get("first_name") or info.get("username") or "User"
-        wins = info.get("bomb_wins", 0)
-        lines.append(f"{idx}. {html.escape(name)} — <b>{wins} Wins</b> 💥")
+    header = f"{info['emoji']} <b>{info['name'].upper()} LEADERS</b>\n"
+    lines = [header]
 
-    await update.message.reply_text("\n".join(lines), parse_mode="HTML")
+    for idx, (uid, uinfo) in enumerate(sorted_users):
+        name = uinfo.get("display_name") or uinfo.get("first_name") or uinfo.get("username") or "Unknown User"
+        profit = _user_profit(uid, uinfo)
+        icon = LEADERS_ICONS[idx % len(LEADERS_ICONS)]
+        mention = f'<a href="tg://user?id={uid}">{html.escape(name)}</a>'
+        lines.append(f"{icon} {mention} — 💰 <b>${profit}</b>")
+
+    lines.append("\n<b>PROFIT = AMOUNT WON - AMOUNT LOSS!</b>")
+    text = "\n".join(lines)
+
+    all_keys = ["card", "bomb", "hack", "bluff", "roulette"]
+    other_keys = [k for k in all_keys if k != game_key]
+
+    b1 = GAME_RANK_CONFIG[other_keys[0]]
+    b2 = GAME_RANK_CONFIG[other_keys[1]]
+    b3 = GAME_RANK_CONFIG[other_keys[2]]
+    b4 = GAME_RANK_CONFIG[other_keys[3]]
+
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(b1["btn"], callback_data=f"gleader_{b1['key']}"),
+            InlineKeyboardButton(b2["btn"], callback_data=f"gleader_{b2['key']}"),
+        ],
+        [
+            InlineKeyboardButton(b3["btn"], callback_data=f"gleader_{b3['key']}"),
+            InlineKeyboardButton(b4["btn"], callback_data=f"gleader_{b4['key']}"),
+        ]
+    ])
+
+    return text, keyboard
+
+
+async def cmd_leaders(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text, keyboard = render_leaders_message("card")
+    await update.message.reply_text(text, reply_markup=keyboard, parse_mode="HTML")
 
 
 GAME_RANK_CONFIG: Dict[str, Dict[str, str]] = {

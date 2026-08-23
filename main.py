@@ -203,18 +203,9 @@ async def items_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text, parse_mode="HTML")
 
 
-async def leaders(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "💣 <b>ʙᴏᴍʙ ɢᴀᴍᴇ ʟᴇᴀᴅᴇʀꜱ</b> — ʟɪᴠᴇ ᴀꜰᴛᴇʀ ꜱᴄᴏʀᴇꜱ ᴀʀᴇ ᴛʀᴀᴄᴋᴇᴅ.\n"
-        "Share: scoring rules (reward per safe tile? loss on bomb?) and I'll track + rank.",
-        parse_mode="HTML",
-    )
-
-
 PLACEHOLDER_HANDLERS = {
     "item": item,
     "items": items_list,
-    "leaders": leaders,
 }
 
 
@@ -240,6 +231,17 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     await query.answer()
+
+    if data.startswith("gleader_"):
+        parts = data.split("_")
+        game_key = parts[1] if len(parts) > 1 else "card"
+        from modules.games.bomb_game import render_leaders_message
+        text, keyboard = render_leaders_message(game_key)
+        try:
+            await query.edit_message_text(text=text, reply_markup=keyboard, parse_mode="HTML")
+        except Exception:
+            pass
+        return
 
     if data.startswith("bomb:"):
         parts = data.split(":")
