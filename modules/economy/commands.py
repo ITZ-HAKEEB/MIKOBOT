@@ -562,12 +562,12 @@ async def revive(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tn = _bold(_styled_name(tn_raw))
     td = get_user(target_id)
     if td.get("status") != "dead":
-        await update.message.reply_text(f"✨ {tn_raw} is already alive!")
+        await update.message.reply_html(f"✨ {tn} Iꜱ Aʟʀᴇᴀᴅʏ Aʟɪᴠᴇ!")
         return
     cost = 500
     if ud["balance"] < cost:
         await update.message.reply_text(
-            f"💸 You NEED ${cost} TO REVIVE, BUT YOU HAVE ONLY ${ud['balance']}"
+            f"💸 Yᴏᴜ Nᴇᴇᴅ ${cost} Tᴏ Rᴇᴠɪᴠᴇ, Bᴜᴛ Yᴏᴜ Hᴀᴠᴇ Oɴʟʏ ${ud['balance']}"
         )
         return
     update_user(user.id, balance=ud["balance"] - cost)
