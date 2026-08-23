@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 import os
+import io
 import re
 import json
+import random
 import asyncio
 import urllib.request
 from datetime import datetime, timezone, timedelta
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 from telegram import Update
 from telegram.ext import ContextTypes
+from PIL import Image, ImageDraw, ImageFont
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -30,6 +33,56 @@ FREE_MODELS = [
 
 # In-memory context cache: {user_id: [{"role": "user"|"assistant", "content": "..."}]}
 _user_histories: Dict[int, List[Dict[str, str]]] = {}
+
+STICKER_EMOTES = [
+    ("🌸 (* > ω < *)", "Hehe~ 💕"),
+    ("✨ (⸝⸝ᵕᴗᵕ⸝⸝)", "Hii! 💖"),
+    ("🥺 (｡•́︿•̀｡)", "Aww~"),
+    ("💖 (´,,•ω•,,)♡", "Miko Love~ 🌸"),
+    ("😆 (≧▽≦)", "Lol haha! ✨"),
+    ("👑 (⁠◕⁠ᴗ⁠◕⁠✿⁠)", "Miko 亗 💕"),
+    ("☕ (*˘︶˘*).｡.:*♡", "Good vibes ✨"),
+    ("🎀 (づ｡◕‿‿◕｡)づ", "Huggie~ 💖"),
+    ("🐾 (=^･ω･^=)", "Nyaa~ 🌸"),
+]
+
+
+def generate_miko_sticker(emote: Optional[str] = None, caption: Optional[str] = None) -> io.BytesIO:
+    if not emote or not caption:
+        chosen = random.choice(STICKER_EMOTES)
+        emote = emote or chosen[0]
+        caption = caption or chosen[1]
+
+    size = (512, 512)
+    img = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    # Cute pastel rounded bubble badge
+    draw.rounded_rectangle(
+        [(35, 110), (477, 402)],
+        radius=45,
+        fill=(255, 230, 240, 240),
+        outline=(255, 105, 180, 255),
+        width=5,
+    )
+
+    try:
+        font_large = ImageFont.truetype("/System/Library/Fonts/Apple Color Emoji.ttc", 60)
+        font_text = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 40)
+    except Exception:
+        try:
+            font_large = font_text = ImageFont.truetype("DejaVuSans.ttf", 40)
+        except Exception:
+            font_large = font_text = ImageFont.load_default()
+
+    draw.text((256, 215), emote, fill=(199, 21, 133, 255), anchor="mm", font=font_large)
+    draw.text((256, 310), caption, fill=(90, 20, 140, 255), anchor="mm", font=font_text)
+
+    buf = io.BytesIO()
+    buf.name = "miko_sticker.webp"
+    img.save(buf, format="WEBP")
+    buf.seek(0)
+    return buf
 
 
 def _get_system_prompt() -> str:
@@ -118,7 +171,16 @@ async def dm_chatbot_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if not chat or chat.type != "private":
         return
 
-    if not msg or not msg.text:
+    if not msg:
+        return
+
+    # If user sent a sticker in DM, reply with cute Miko sticker
+    if msg.sticker:
+        st_buf = generate_miko_sticker()
+        await msg.reply_sticker(sticker=st_buf)
+        return
+
+    if not msg.text:
         return
 
     text = msg.text.strip()
@@ -155,7 +217,6 @@ async def dm_chatbot_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             "areyy bolo na kya hua? main toh yahin hu 💕",
             "kya haal chaal? aaj ka din kaisa gaya? 💖",
         ]
-        import random
         reply = random.choice(fallbacks)
 
     # Save to history
@@ -164,3 +225,13 @@ async def dm_chatbot_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     _user_histories[user_id] = history[-8:]
 
     await msg.reply_text(reply)
+
+    # ~30% chance or if sticker keywords mentioned, send a cute webp sticker
+    lowered = text.lower()
+    wants_sticker = any(w in lowered for w in ("sticker", "cute", "love", "kiss", "hug", "pout", "gussa", "smile"))
+    if wants_sticker or random.random() < 0.30:
+        try:
+            st_buf = generate_miko_sticker()
+            await msg.reply_sticker(sticker=st_buf)
+        except Exception:
+            pass
