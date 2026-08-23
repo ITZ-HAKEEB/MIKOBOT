@@ -30,6 +30,7 @@ BOT_COMMANDS = [
     BotCommand("allf", "List All Your Friends"),
     BotCommand("friend", "Show Friends Count"),
     BotCommand("own", "Make Your Own Sticker Pack"),
+    BotCommand("kang", "Add Sticker To Your Pack / Make Pack"),
     BotCommand("help", "Show Admin Commands"),
     BotCommand("intro", "Check Your/Other's Intro"),
     BotCommand("setintro", "Set Your Intro Text"),

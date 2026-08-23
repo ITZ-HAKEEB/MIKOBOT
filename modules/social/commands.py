@@ -1609,7 +1609,14 @@ async def setintro(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def own(update: Update, context: ContextTypes.DEFAULT_TYPE):
     replied = update.message.reply_to_message if update.message else None
     if not replied or not replied.sticker:
-        await update.message.reply_text("⚠️ Rᴇᴘʟʏ Tᴏ A Sᴛɪᴄᴋᴇʀ Tᴏ Aᴅᴅ Iɴ Yᴏᴜʀ Pᴀᴄᴋ.")
+        await update.message.reply_text(
+            "⚠️ <b>Rᴇᴘʟʏ Tᴏ A Sᴛɪᴄᴋᴇʀ Tᴏ Aᴅᴅ Iɴ Yᴏᴜʀ Pᴀᴄᴋ.</b>\n\n"
+            "👉 <b>Usage:</b>\n"
+            "• <code>/own</code> or <code>/kang</code> (Default Pack)\n"
+            "• <code>/own &lt;number&gt;</code> (Create/Add to Pack Vol 2, 3...)\n"
+            "• <code>/own &lt;emoji&gt;</code> or <code>/own &lt;number&gt; &lt;emoji&gt;</code> (Custom Emoji)",
+            parse_mode="HTML",
+        )
         return
 
     user = update.effective_user
@@ -1619,24 +1626,31 @@ async def own(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     src_sticker = replied.sticker
 
+    # Parse optional volume or custom emoji from arguments: e.g. /own 2 🔥 or /kang 3
+    args = context.args or []
+    target_vol = None
+    custom_emoji = None
+    for a in args:
+        if a.isdigit() and int(a) > 0:
+            target_vol = int(a)
+        else:
+            custom_emoji = a.strip()
+
     # Determine format
     if src_sticker.is_animated:
         st_format = "animated"
         type_label = "Aɴɪᴍᴀᴛᴇᴅ"
-        pack_suffix = f"anim_{user.id}"
+        base_suffix = f"anim_{user.id}"
     elif src_sticker.is_video:
         st_format = "video"
         type_label = "Vɪᴅᴇᴏ"
-        pack_suffix = f"vid_{user.id}"
+        base_suffix = f"vid_{user.id}"
     else:
         st_format = "static"
         type_label = "Sᴛᴀᴛɪᴄ"
-        pack_suffix = f"static_{user.id}"
+        base_suffix = f"static_{user.id}"
 
-    pack_name = f"miko_{pack_suffix}_by_{bot_username}"
-    pack_title = f"{user.first_name}'s Miko {type_label} Pack"
-    emoji = src_sticker.emoji or "✨"
-
+    emoji = custom_emoji or src_sticker.emoji or "✨"
     wait_msg = await update.message.reply_text("⏳ <i>Processing sticker...</i>", parse_mode="HTML")
 
     try:
@@ -1645,40 +1659,108 @@ async def own(update: Update, context: ContextTypes.DEFAULT_TYPE):
             emoji_list=[emoji],
         )
 
-        pack_exists = False
-        try:
-            await bot.get_sticker_set(name=pack_name)
-            pack_exists = True
-        except Exception:
+        def get_pack_info(v: int):
+            v_str = f"_v{v}" if v > 1 else ""
+            p_name = f"miko_{base_suffix}{v_str}_by_{bot_username}"
+            p_title = f"{user.first_name}'s Miko {type_label} Pack" + (f" Vol {v}" if v > 1 else "")
+            return p_name, p_title
+
+        start_vol = target_vol if target_vol is not None else 1
+        max_attempts = 10 if target_vol is None else 1
+        current_vol = start_vol
+
+        success = False
+        final_pack_name = ""
+        resp_text = ""
+
+        for attempt in range(max_attempts):
+            p_name, p_title = get_pack_info(current_vol)
+
             pack_exists = False
+            try:
+                await bot.get_sticker_set(name=p_name)
+                pack_exists = True
+            except Exception:
+                pack_exists = False
 
-        if pack_exists:
-            await bot.add_sticker_to_set(
-                user_id=user.id,
-                name=pack_name,
-                sticker=input_sticker,
-            )
-            resp_text = (
-                f"✨ <b>Sᴛɪᴄᴋᴇʀ Aᴅᴅᴇᴅ Tᴏ Yᴏᴜʀ {type_label} Pᴀᴄᴋ!</b>\n\n"
-                f"⚡️ <b>Iᴛ Cᴀɴ Tᴀᴋᴇ 2-3 Mɪɴꜱ Tᴏ Rᴇꜰʟᴇᴄᴛ.</b>"
-            )
-        else:
-            await bot.create_new_sticker_set(
-                user_id=user.id,
-                name=pack_name,
-                title=pack_title,
-                stickers=[input_sticker],
-                sticker_format=st_format,
-            )
-            resp_text = (
-                f"✨ <b>Nᴇᴡ {type_label} Pᴀᴄᴋ Cʀᴇᴀᴛᴇᴅ &amp; Sᴛɪᴄᴋᴇʀ Sᴀᴠᴇᴅ!</b>\n\n"
-                f"⚡️ <b>Iᴛ Cᴀɴ Tᴀᴋᴇ 2-3 Mɪɴꜱ Tᴏ Rᴇꜰʟᴇᴄᴛ.</b>"
-            )
+            if pack_exists:
+                try:
+                    await bot.add_sticker_to_set(
+                        user_id=user.id,
+                        name=p_name,
+                        sticker=input_sticker,
+                    )
+                    final_pack_name = p_name
+                    vol_label = f" Vol {current_vol}" if current_vol > 1 else ""
+                    resp_text = (
+                        f"✨ <b>Sᴛɪᴄᴋᴇʀ Aᴅᴅᴇᴅ Tᴏ Yᴏᴜʀ {type_label} Pᴀᴄᴋ{vol_label}!</b>\n\n"
+                        f"⚡️ <b>Iᴛ Cᴀɴ Tᴀᴋᴇ 2-3 Mɪɴꜱ Tᴏ Rᴇꜰʟᴇᴄᴛ.</b>"
+                    )
+                    success = True
+                    break
+                except Exception as add_err:
+                    add_msg = str(add_err).lower()
+                    if "full" in add_msg or "stickers_too_much" in add_msg or "too much" in add_msg:
+                        if target_vol is not None:
+                            await wait_msg.edit_text(
+                                f"⚠️ <b>Pack Vol {current_vol} is Full!</b>\nUse <code>/own {current_vol + 1}</code> to create/use the next volume.",
+                                parse_mode="HTML",
+                            )
+                            return
+                        current_vol += 1
+                        continue
+                    elif "already occupied" in add_msg or "user_id_invalid" in add_msg:
+                        current_vol += 1
+                        continue
+                    else:
+                        raise add_err
+            else:
+                try:
+                    await bot.create_new_sticker_set(
+                        user_id=user.id,
+                        name=p_name,
+                        title=p_title,
+                        stickers=[input_sticker],
+                        sticker_format=st_format,
+                    )
+                    final_pack_name = p_name
+                    vol_label = f" Vol {current_vol}" if current_vol > 1 else ""
+                    resp_text = (
+                        f"✨ <b>Nᴇᴡ {type_label} Pᴀᴄᴋ{vol_label} Cʀᴇᴀᴛᴇᴅ &amp; Sᴛɪᴄᴋᴇʀ Sᴀᴠᴇᴅ!</b>\n\n"
+                        f"⚡️ <b>Iᴛ Cᴀɴ Tᴀᴋᴇ 2-3 Mɪɴꜱ Tᴏ Rᴇꜰʟᴇᴄᴛ.</b>"
+                    )
+                    success = True
+                    break
+                except Exception as create_err:
+                    create_msg = str(create_err).lower()
+                    if "already occupied" in create_msg or "occupied" in create_msg:
+                        # Pack exists on Telegram: try adding directly to it
+                        try:
+                            await bot.add_sticker_to_set(
+                                user_id=user.id,
+                                name=p_name,
+                                sticker=input_sticker,
+                            )
+                            final_pack_name = p_name
+                            vol_label = f" Vol {current_vol}" if current_vol > 1 else ""
+                            resp_text = (
+                                f"✨ <b>Sᴛɪᴄᴋᴇʀ Aᴅᴅᴇᴅ Tᴏ Yᴏᴜʀ {type_label} Pᴀᴄᴋ{vol_label}!</b>\n\n"
+                                f"⚡️ <b>Iᴛ Cᴀɴ Tᴀᴋᴇ 2-3 Mɪɴꜱ Tᴏ Rᴇꜰʟᴇᴄᴛ.</b>"
+                            )
+                            success = True
+                            break
+                        except Exception:
+                            # Not owner or full, increment volume
+                            current_vol += 1
+                            continue
+                    else:
+                        raise create_err
 
-        kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("👉 Oᴘᴇɴ Sᴛɪᴄᴋᴇʀ Pᴀᴄᴋ", url=f"https://t.me/addstickers/{pack_name}")]
-        ])
-        await wait_msg.edit_text(resp_text, parse_mode="HTML", reply_markup=kb)
+        if success:
+            kb = InlineKeyboardMarkup([
+                [InlineKeyboardButton("👉 Oᴘᴇɴ Sᴛɪᴄᴋᴇʀ Pᴀᴄᴋ", url=f"https://t.me/addstickers/{final_pack_name}")]
+            ])
+            await wait_msg.edit_text(resp_text, parse_mode="HTML", reply_markup=kb)
     except Exception as e:
         err_str = str(e)
         if "PEER_ID_INVALID" in err_str or "USER_NOT_MUTUAL_CONTACT" in err_str or "bot can't initiate conversation" in err_str.lower():
@@ -1845,6 +1927,7 @@ HANDLERS = {
     "intro": intro,
     "setintro": setintro,
     "own": own,
+    "kang": own,
     "open": open_cmd,
     "close": close_cmd,
     "help": help_cmd,
