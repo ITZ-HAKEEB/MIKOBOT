@@ -788,189 +788,45 @@ def generate_quote_sticker(
     author_color: str = "#FF79C6",
     font_style: str = "normal",
 ) -> io.BytesIO:
-    if _hti:
+    def hex_to_rgb(hex_str: str, default=(24, 18, 38, 255)):
         try:
-            safe_name = html_lib.escape(author_name)
-            safe_text = html_lib.escape(text).replace("\n", "<br>")
-            
-            font_family_css = "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif"
-            font_style_css = "normal"
-            if font_style in ("mono", "code"):
-                font_family_css = "'JetBrains Mono', 'SF Mono', 'Courier New', monospace"
-            elif font_style in ("italic", "cursive"):
-                font_style_css = "italic"
-            elif font_style == "serif":
-                font_family_css = "'Georgia', 'Times New Roman', serif"
-            
-            avatar_html = ""
-            if avatar_bytes:
-                b64 = base64.b64encode(avatar_bytes).decode()
-                avatar_html = f'<img class="avatar" src="data:image/png;base64,{b64}">'
-            else:
-                initial = (author_name[:1] if author_name else "U").upper()
-                avatar_html = f'<div class="avatar-placeholder">{html_lib.escape(initial)}</div>'
-                
-            html_content = f'''
-            <!DOCTYPE html>
-            <html>
-            <head>
-            <meta charset="utf-8">
-            <style>
-              @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700;900&family=Noto+Sans+Meetei+Mayek&family=Noto+Sans+Tibetan:wght@400;700&family=Noto+Sans+Symbols&family=Noto+Sans+Symbols+2&family=Roboto:wght@400;700;900&display=swap');
-              
-              * {{ margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }}
-              body {{
-                background: transparent;
-                display: inline-flex;
-                align-items: flex-end;
-                padding: 18px;
-                font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-              }}
-              .avatar {{
-                width: 84px;
-                height: 84px;
-                border-radius: 50%;
-                margin-right: 16px;
-                flex-shrink: 0;
-                object-fit: cover;
-                background: linear-gradient(135deg, #ff4b72, #ff758c);
-              }}
-              .avatar-placeholder {{
-                width: 84px;
-                height: 84px;
-                border-radius: 50%;
-                margin-right: 16px;
-                flex-shrink: 0;
-                background: linear-gradient(135deg, #ff4b72, #ff758c);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: #ffffff;
-                font-size: 36px;
-                font-weight: 900;
-              }}
-              .bubble {{
-                position: relative;
-                background: {bg_color};
-                border-radius: 28px;
-                padding: 18px 40px 22px 28px;
-                max-width: 560px;
-                min-width: 260px;
-                box-shadow: 0 6px 24px rgba(0,0,0,0.35);
-              }}
-              .bubble::before {{
-                content: '';
-                position: absolute;
-                bottom: 0;
-                left: -12px;
-                width: 0;
-                height: 0;
-                border-style: solid;
-                border-width: 0 14px 22px 0;
-                border-color: transparent {bg_color} transparent transparent;
-              }}
-              .author {{
-                color: {author_color};
-                font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'Arial Unicode MS', 'Apple Symbols', 'Kailasa', 'Noto Sans Meetei Mayek', 'Noto Sans Tibetan', sans-serif;
-                font-size: 24px;
-                font-weight: 800;
-                line-height: 1.25;
-                margin-bottom: 10px;
-                white-space: nowrap;
-              }}
-              .message {{
-                color: {text_color};
-                font-family: {font_family_css};
-                font-style: {font_style_css};
-                font-size: 38px;
-                font-weight: 800;
-                line-height: 1.32;
-                word-break: break-word;
-              }}
-            </style>
-            </head>
-            <body>
-              <div style="display:inline-flex; align-items:flex-end;">
-                {avatar_html}
-                <div class="bubble">
-                  <div class="author">{safe_name}</div>
-                  <div class="message">{safe_text}</div>
-                </div>
-              </div>
-            </body>
-            </html>
-            '''
-            tmp_filename = f"q_{random.randint(100000, 999999)}.png"
-            _hti.screenshot(html_str=html_content, save_as=tmp_filename)
-            tmp_path = os.path.join("/tmp", tmp_filename)
-            if os.path.exists(tmp_path):
-                img = Image.open(tmp_path)
-                bbox = img.getbbox()
-                if bbox:
-                    pad_right = 50
-                    pad_bottom = 30
-                    w = bbox[2] - bbox[0] + pad_right
-                    h = bbox[3] - bbox[1] + pad_bottom
-                    new_img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-                    cropped = img.crop(bbox)
-                    new_img.paste(cropped, (0, 0))
-                    img = new_img
-                try:
-                    os.remove(tmp_path)
-                except Exception:
-                    pass
-                    
-                # Scale to fit telegram 512 bounds cleanly
-                max_dim = max(img.size)
-                if max_dim != 512:
-                    ratio = 512.0 / max_dim
-                    new_size = (int(img.size[0] * ratio), int(img.size[1] * ratio))
-                    img = img.resize(new_size, Image.Resampling.LANCZOS)
-                
-                # Apply sharpness enhancement for ultra-crisp edges
-                enhancer = ImageEnhance.Sharpness(img)
-                img = enhancer.enhance(1.25)
-                
-                buf = io.BytesIO()
-                buf.name = "quote.webp"
-                img.save(buf, format="WEBP", quality=98, method=6)
-                buf.seek(0)
-                return buf
+            h = str(hex_str).lstrip("#")
+            if len(h) == 3:
+                h = "".join([c * 2 for c in h])
+            r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+            return (r, g, b, 255)
         except Exception:
-            pass
+            return default
 
-    # PIL Fallback
-    font_paths = [
-        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
-        "/Library/Fonts/Arial Unicode.ttf",
-        "/System/Library/Fonts/Apple Symbols.ttf",
-        "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
-        "/System/Library/Fonts/Helvetica.ttc",
-    ]
-    font_name = None
-    font_text = None
-    for p in font_paths:
-        if os.path.exists(p):
-            try:
-                font_name = ImageFont.truetype(p, 20)
-                font_text = ImageFont.truetype(p, 24)
-                break
-            except Exception:
-                pass
-    if not font_name:
+    # Load high-definition bold fonts
+    font_bold_path = "assets/fonts/Roboto-Bold.ttf"
+    font_dev_path = "assets/fonts/NotoSansDevanagari-Bold.ttf"
+
+    is_hindi = any("\u0900" <= ch <= "\u097f" for ch in (text + author_name))
+    font_file = font_dev_path if (is_hindi and os.path.exists(font_dev_path)) else font_bold_path
+
+    if not os.path.exists(font_file):
+        font_file = font_bold_path if os.path.exists(font_bold_path) else None
+
+    # Big and bold font sizes for razor-sharp quote stickers
+    if font_file:
+        font_name = ImageFont.truetype(font_file, 42)
+        font_text = ImageFont.truetype(font_file, 50)
+    else:
         font_name = ImageFont.load_default()
         font_text = ImageFont.load_default()
+
+    dummy_draw = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
 
     words = text.split()
     lines = []
     curr = ""
-    dummy_draw = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
-    
+    max_line_width = 650
+
     for w in words:
         test = curr + (" " if curr else "") + w
         bbox = dummy_draw.textbbox((0, 0), test, font=font_text)
-        w_px = bbox[2] - bbox[0]
-        if w_px > 340 and curr:
+        if (bbox[2] - bbox[0]) > max_line_width and curr:
             lines.append(curr)
             curr = w
         else:
@@ -978,76 +834,86 @@ def generate_quote_sticker(
     if curr:
         lines.append(curr)
     if not lines:
-        lines = ["(empty)"]
+        lines = [text if text else "(empty)"]
 
     name_bbox = dummy_draw.textbbox((0, 0), author_name, font=font_name)
     name_w = name_bbox[2] - name_bbox[0]
     name_h = name_bbox[3] - name_bbox[1]
 
-    text_line_h = 30
-    text_total_h = len(lines) * text_line_h
-    
-    max_w = name_w
+    line_h = 62
+    text_total_h = len(lines) * line_h
+
+    content_w = name_w
     for l in lines:
         b = dummy_draw.textbbox((0, 0), l, font=font_text)
-        max_w = max(max_w, b[2] - b[0])
+        content_w = max(content_w, b[2] - b[0])
 
-    avatar_size = 64
-    bubble_pad_x = 20
-    bubble_pad_y = 16
-    
-    bubble_w = max(int(max_w + bubble_pad_x * 2 + 10), 160)
-    bubble_h = int(name_h + 12 + text_total_h + bubble_pad_y * 2)
-    
-    total_w = avatar_size + 16 + bubble_w + 10
-    total_h = max(avatar_size + 10, bubble_h + 10)
-    
+    pad_x = 44
+    pad_y = 36
+    bubble_w = max(int(content_w + pad_x * 2), 340)
+    bubble_h = int(name_h + 24 + text_total_h + pad_y * 2)
+
+    avatar_size = 120
+    total_w = avatar_size + 28 + bubble_w + 30
+    total_h = max(avatar_size + 30, bubble_h + 30)
+
     img = Image.new("RGBA", (int(total_w), int(total_h)), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    avatar_x = 5
-    avatar_y = total_h - avatar_size - 5
-    
+    bg_rgb = hex_to_rgb(bg_color, (24, 18, 38, 255))
+    text_rgb = hex_to_rgb(text_color, (255, 255, 255, 255))
+    author_rgb = hex_to_rgb(author_color, (255, 121, 198, 255))
+
+    av_x = 15
+    av_y = total_h - avatar_size - 15
+
     if avatar_bytes:
         try:
             av = Image.open(io.BytesIO(avatar_bytes)).convert("RGBA")
             av = av.resize((avatar_size, avatar_size), Image.Resampling.LANCZOS)
             mask = Image.new("L", (avatar_size, avatar_size), 0)
             ImageDraw.Draw(mask).ellipse((0, 0, avatar_size, avatar_size), fill=255)
-            img.paste(av, (avatar_x, avatar_y), mask)
+            img.paste(av, (av_x, av_y), mask)
         except Exception:
-            draw.ellipse([(avatar_x, avatar_y), (avatar_x + avatar_size, avatar_y + avatar_size)], fill=(240, 100, 150, 255))
+            draw.ellipse([(av_x, av_y), (av_x + avatar_size, av_y + avatar_size)], fill=(255, 105, 180, 255))
     else:
-        draw.ellipse([(avatar_x, avatar_y), (avatar_x + avatar_size, avatar_y + avatar_size)], fill=(240, 100, 150, 255))
-        draw.text((avatar_x + 22, avatar_y + 18), (author_name[:1] if author_name else "U").upper(), fill=(255, 255, 255), font=font_name)
-    
-    bubble_x = avatar_x + avatar_size + 12
-    bubble_y = total_h - bubble_h - 5
-    
-    bg_color = (27, 20, 42, 250)
-    draw.rounded_rectangle(
-        [(bubble_x, bubble_y), (bubble_x + bubble_w, bubble_y + bubble_h)],
-        radius=20,
-        fill=bg_color
-    )
-    
-    tail_pts = [
-        (bubble_x + 1, bubble_y + bubble_h - 22),
-        (bubble_x - 10, bubble_y + bubble_h - 10),
-        (bubble_x + 15, bubble_y + bubble_h)
-    ]
-    draw.polygon(tail_pts, fill=bg_color)
-    
-    draw.text((bubble_x + bubble_pad_x, bubble_y + bubble_pad_y), author_name, fill=(255, 160, 60, 255), font=font_name)
-    
-    cur_y = bubble_y + bubble_pad_y + name_h + 10
+        draw.ellipse([(av_x, av_y), (av_x + avatar_size, av_y + avatar_size)], fill=(255, 105, 180, 255))
+        init_letter = (author_name[:1] if author_name else "U").upper()
+        init_bbox = dummy_draw.textbbox((0, 0), init_letter, font=font_name)
+        iw = init_bbox[2] - init_bbox[0]
+        ih = init_bbox[3] - init_bbox[1]
+        draw.text(
+            (av_x + (avatar_size - iw) // 2, av_y + (avatar_size - ih) // 2 - 4),
+            init_letter,
+            fill=(255, 255, 255, 255),
+            font=font_name,
+        )
+
+    bx = av_x + avatar_size + 20
+    by = total_h - bubble_h - 15
+    draw.rounded_rectangle([(bx, by), (bx + bubble_w, by + bubble_h)], radius=32, fill=bg_rgb)
+
+    tail = [(bx + 2, by + bubble_h - 38), (bx - 16, by + bubble_h - 18), (bx + 26, by + bubble_h)]
+    draw.polygon(tail, fill=bg_rgb)
+
+    draw.text((bx + pad_x, by + pad_y), author_name, fill=author_rgb, font=font_name)
+
+    cur_y = by + pad_y + name_h + 22
     for l in lines:
-        draw.text((bubble_x + bubble_pad_x, cur_y), l, fill=(255, 255, 255, 255), font=font_text)
-        cur_y += text_line_h
+        draw.text((bx + pad_x, cur_y), l, fill=text_rgb, font=font_text)
+        cur_y += line_h
+
+    max_dim = max(img.size)
+    if max_dim != 512:
+        ratio = 512.0 / max_dim
+        new_size = (max(1, int(img.size[0] * ratio)), max(1, int(img.size[1] * ratio)))
+        img = img.resize(new_size, Image.Resampling.LANCZOS)
+
+    img = ImageEnhance.Sharpness(img).enhance(1.4)
 
     buf = io.BytesIO()
     buf.name = "quote.webp"
-    img.save(buf, format="WEBP")
+    img.save(buf, format="WEBP", quality=100, method=6)
     buf.seek(0)
     return buf
 
