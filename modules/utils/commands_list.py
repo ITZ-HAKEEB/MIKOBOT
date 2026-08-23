@@ -17,7 +17,7 @@ BOT_COMMANDS = [
     BotCommand("mp", "Check Your Active Powers"),
     BotCommand("daily", "Claim Free Daily Cash"),
     BotCommand("ludo", "Play Ludo Game"),
-    BotCommand("claim", "Claim $10k By Adding Miko To Groups"),
+    BotCommand("claim", "Claim Group Reward"),
     BotCommand("coupons", "Know About Coupon Commands"),
     BotCommand("economy", "All Global Economy Commands"),
     BotCommand("game", "Check All Miko Mini Games"),

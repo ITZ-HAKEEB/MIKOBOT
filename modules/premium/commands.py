@@ -150,8 +150,9 @@ async def claim(update, context):
     ud = get_user(user.id, user.username or user.first_name or "User", user.first_name)
     claimer_name = ud.get("display_name") or (user.first_name or user.username or "User")
 
-    reward = 10000
-    update_user(user.id, balance=ud["balance"] + reward)
+    reward = 300
+    new_bal = ud["balance"] + reward
+    update_user(user.id, balance=new_bal)
     update_group(
         chat.id,
         last_claim_date=today_str,
@@ -160,10 +161,9 @@ async def claim(update, context):
     )
 
     await update.message.reply_text(
-        f"🎁 <b>CLAIMED! +${reward:,} added to your balance!</b>\n"
-        f"Conditions: add Miko to a group with 500+ members.\n"
-        f"💰 <b>New balance:</b> ${ud['balance'] + reward:,}",
-        parse_mode="HTML",
+        f"🎉 Gʀᴏᴜᴘ Rᴇᴡᴀʀᴅ Cʟᴀɪᴍᴇᴅ Bʏ {claimer_name} ࿐\n\n"
+        f"💰 Rᴇᴡᴀʀᴅ Aᴅᴅᴇᴅ: ${reward}\n"
+        f"🏦 Nᴇᴡ Bᴀʟᴀɴᴄᴇ: ${new_bal}"
     )
 
 
