@@ -1,0 +1,229 @@
+import os
+import json
+import random
+from typing import Optional, Dict, Any, List
+
+DATA_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "user_data.json")
+GROUP_SETTINGS_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "group_settings.json")
+
+DEFAULT_USER = {
+    "username": "User",
+    "balance": 0,
+    "rank": 0,
+    "gems": 0.0,
+    "kills": 0,
+    "protected": False,
+    "last_daily": None,
+    "status": "alive",
+    "level": 1,
+    "xp": 0,
+    "xp_max": 1000,
+    "emoji": None,
+    "premium": False,
+    "powers": [],
+    "display_name": None,
+    "intro_text": None,
+    "friends": {},
+    "wallet_balance": 0,
+    "daily_kills": 0,
+    "robs": 0,
+    "daily_robs": 0,
+    "bomb_wins": 0,
+    "past_names": [],
+    "past_usernames": [],
+}
+
+POWERS_CATALOG: Dict[str, Dict[str, Any]] = {
+    "rampage": {
+        "name": "Rampage Power",
+        "emoji": "🐺",
+        "price": 1,
+        "desc": "Unleash Miko's fury! Deal massive damage and dominate every battle!",
+    },
+    "cloak": {
+        "name": "Cloak Power",
+        "emoji": "🎭",
+        "price": 1,
+        "desc": "Stay hidden, move silent! Perfect for escape, stealth and surprise attacks!",
+    },
+    "vault": {
+        "name": "Vault Power",
+        "emoji": "💎",
+        "price": 1,
+        "desc": "Secure your rewards! Extra protection for your wealth and rare treasures!",
+    },
+}
+
+
+def _migrate(data: Dict[str, Any]) -> Dict[str, Any]:
+    changed = False
+    for uid, info in data.items():
+        for k, v in DEFAULT_USER.items():
+            if k not in info:
+                info[k] = v if not isinstance(v, (dict, list)) else type(v)()
+                changed = True
+    if changed:
+        save_data(data)
+    return data
+
+
+def load_data() -> Dict[str, Any]:
+    if not os.path.exists(DATA_FILE):
+        return {}
+    try:
+        with open(DATA_FILE, "r") as f:
+            data = json.load(f)
+        return _migrate(data)
+    except Exception:
+        return {}
+
+
+def save_data(data: Dict[str, Any]) -> None:
+    with open(DATA_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+def get_user(user_id: int, username: str = "User", display_name: Optional[str] = None) -> Dict[str, Any]:
+    data = load_data()
+    uid = str(user_id)
+    if uid not in data:
+        new_user = dict(DEFAULT_USER)
+        new_user["username"] = username
+        new_user["rank"] = 0
+        new_user["past_usernames"] = [username] if username and username != "User" else []
+        if display_name:
+            new_user["display_name"] = display_name
+            new_user["past_names"] = [display_name]
+        else:
+            new_user["past_names"] = [username] if username and username != "User" else []
+        data[uid] = new_user
+        save_data(data)
+    else:
+        changed = False
+        if "past_names" not in data[uid]:
+            data[uid]["past_names"] = []
+            if data[uid].get("display_name"):
+                data[uid]["past_names"].append(data[uid]["display_name"])
+            changed = True
+        if "past_usernames" not in data[uid]:
+            data[uid]["past_usernames"] = []
+            if data[uid].get("username"):
+                data[uid]["past_usernames"].append(data[uid]["username"])
+            changed = True
+
+        if data[uid].get("username") != username:
+            data[uid]["username"] = username
+            if username and username != "User" and username not in data[uid]["past_usernames"]:
+                data[uid]["past_usernames"].append(username)
+            changed = True
+        elif username and username != "User" and username not in data[uid]["past_usernames"]:
+            data[uid]["past_usernames"].append(username)
+            changed = True
+
+        if display_name:
+            if data[uid].get("display_name") != display_name:
+                data[uid]["display_name"] = display_name
+                if display_name not in data[uid]["past_names"]:
+                    data[uid]["past_names"].append(display_name)
+                changed = True
+            elif display_name not in data[uid]["past_names"]:
+                data[uid]["past_names"].append(display_name)
+                changed = True
+        if changed:
+            save_data(data)
+    return _migrate({uid: data[uid]})[uid]
+
+
+def update_user(user_id: int, **kwargs) -> Optional[Dict[str, Any]]:
+    data = load_data()
+    uid = str(user_id)
+    if uid in data:
+        for k, v in kwargs.items():
+            data[uid][k] = v
+        save_data(data)
+        return data[uid]
+    return None
+
+
+def add_xp(user_id: int, amount: int) -> Dict[str, Any]:
+    user = get_user(user_id)
+    xp = (user.get("xp") or 0) + amount
+    level = user.get("level") or 1
+    xp_max = user.get("xp_max") or 1000
+    while xp >= xp_max:
+        xp -= xp_max
+        level += 1
+        xp_max = int(xp_max * 1.35)
+    return update_user(user_id, xp=xp, level=level, xp_max=xp_max) or get_user(user_id)
+
+
+def global_rank(user_id: int, field: str = "balance") -> int:
+    data = load_data()
+    items = sorted(data.items(), key=lambda x: x[1].get(field, 0), reverse=True)
+    for i, (uid, _) in enumerate(items, 1):
+        if uid == str(user_id):
+            return i
+    return len(items) + 1
+
+
+def get_all_users() -> Dict[str, Any]:
+    return load_data()
+
+
+def load_group_settings() -> Dict[str, Any]:
+    if not os.path.exists(GROUP_SETTINGS_FILE):
+        return {}
+    try:
+        with open(GROUP_SETTINGS_FILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def save_group_settings(data: Dict[str, Any]) -> None:
+    with open(GROUP_SETTINGS_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+def get_group(chat_id: int) -> Dict[str, Any]:
+    settings = load_group_settings()
+    cid = str(chat_id)
+    if cid not in settings:
+        settings[cid] = {"economy_enabled": True}
+        save_group_settings(settings)
+    return settings[cid]
+
+
+def update_group(chat_id: int, **kwargs) -> Dict[str, Any]:
+    settings = load_group_settings()
+    cid = str(chat_id)
+    if cid not in settings:
+        settings[cid] = {"economy_enabled": True}
+    for k, v in kwargs.items():
+        settings[cid][k] = v
+    save_group_settings(settings)
+    return settings[cid]
+
+
+FEATURED_GROUPS_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "featured_groups.json")
+
+DEFAULT_FEATURED_GROUPS: List[Dict[str, Any]] = []
+
+
+def get_featured_groups() -> List[Dict[str, Any]]:
+    if not os.path.exists(FEATURED_GROUPS_FILE):
+        return []
+    try:
+        with open(FEATURED_GROUPS_FILE, "r") as f:
+            data = json.load(f)
+            return list(data.get("groups") or [])
+    except Exception:
+        return []
+
+
+def save_featured_groups(groups: List[Dict[str, Any]]) -> None:
+    try:
+        with open(FEATURED_GROUPS_FILE, "w") as f:
+            json.dump({"groups": groups}, f, indent=2)
+    except Exception:
+        pass

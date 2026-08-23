@@ -1,0 +1,384 @@
+import os
+import json
+from datetime import datetime
+from typing import Dict, Any
+from telegram import Update
+from telegram.ext import ContextTypes
+
+from modules.utils.storage import get_user, update_user, POWERS_CATALOG
+
+
+def _cs(cmd, desc=""):
+    return f"⏳ <b>/{cmd}</b> — ᴄᴏᴍɪɴɢ ꜱᴏᴏɴ!\n<i>{desc}</i>"
+
+
+async def ph(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = (
+        "<b>⚡ Pᴏᴡᴇʀꜱ Mᴇɴᴜ ⚡\n\n"
+        "🛒 /powers - Sʜᴏᴡ ᴀʟʟ ᴀᴠᴀɪʟᴀʙʟᴇ ᴘᴏᴡᴇʀꜱ\n"
+        "ℹ️ /pinfo &lt;name&gt; - Sᴇᴇ ᴘᴏᴡᴇʀ ᴅᴇᴛᴀɪʟꜱ\n"
+        "✅ /activate or /act - Aᴄᴛɪᴠᴀᴛᴇ ᴀ ᴘᴏᴡᴇʀ\n"
+        "✨ /mypowers or /mp - Cʜᴇᴄᴋ ʏᴏᴜʀ ᴀᴄᴛɪᴠᴇ ᴘᴏᴡᴇʀꜱ\n"
+        "📢 /ph - Pᴏᴡᴇʀ Hᴇʟᴘ Cᴏᴍᴍᴀɴᴅꜱ</b>"
+    )
+    await update.message.reply_text(msg, parse_mode="HTML")
+
+
+async def powers_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = (
+        "⚡ <b>Aᴠᴀɪʟᴀʙʟᴇ Pᴏᴡᴇʀꜱ Iɴ Sᴛᴏʀᴇ</b>\n\n"
+        "🔥 Rampage (rampage)\n"
+        "🥷 Cloak (cloak)\n"
+        "🏦 Vault (vault)\n\n"
+        "ℹ️ Uꜱᴇ /pinfo &lt;power_name&gt; ᴛᴏ ꜱᴇᴇ ᴅᴇᴛᴀɪʟꜱ ᴀɴᴅ ᴘʀɪᴄᴇꜱ."
+    )
+    await update.message.reply_text(msg, parse_mode="HTML")
+
+
+async def pinfo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    args = context.args or []
+    if not args:
+        keys = " • ".join(POWERS_CATALOG.keys())
+        await update.message.reply_text(f"ℹ️ Usage: /pinfo &lt;power_name&gt;\nAvailable: {keys}", parse_mode="HTML")
+        return
+    key = str(args[0]).lower().strip()
+    if key not in POWERS_CATALOG:
+        await update.message.reply_text(f"❌ Unknown power. Available: {' • '.join(POWERS_CATALOG.keys())}")
+        return
+    info = POWERS_CATALOG[key]
+    msg = (
+        f"{info['emoji']} <b>{info['name'].upper()}</b>\n\n"
+        f"✨ {info['desc']}\n"
+        f"💎 Cost: <b>{info['price']} Gem / day</b>\n\n"
+        f"👉 To activate: <code>/activate {key} &lt;days&gt;</code>"
+    )
+    await update.message.reply_text(msg, parse_mode="HTML")
+
+
+async def activate(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    ud = get_user(user.id, user.username or user.first_name or "User", user.first_name)
+    args = context.args or []
+    if not args:
+        await update.message.reply_text("💡 Usage: /activate <power_name> <days>\nExample: <code>/activate rampage 3</code>", parse_mode="HTML")
+        return
+    key = str(args[0]).lower().strip()
+    if key not in POWERS_CATALOG:
+        await update.message.reply_text(f"❌ Unknown power. Available: {', '.join(POWERS_CATALOG.keys())}")
+        return
+
+    days = 1
+    if len(args) > 1 and args[1].isdigit():
+        days = max(1, int(args[1]))
+
+    info = POWERS_CATALOG[key]
+    total_cost = info["price"] * days
+    if ud["gems"] < total_cost:
+        await update.message.reply_text(
+            f"💎 Need {total_cost} gems for {days} day(s). You have {ud['gems']:.2f} gems.\nBuy more at /gems"
+        )
+        return
+
+    active = list(ud.get("powers") or [])
+    if key not in active:
+        active.append(key)
+    update_user(user.id, gems=round(ud["gems"] - total_cost, 2), powers=active, premium=True)
+    await update.message.reply_text(
+        f"✅ <b>{info['name']}</b> activated for {days} day(s)! (-{total_cost} gems)\n"
+        f"Active powers: {', '.join(active)}",
+        parse_mode="HTML",
+    )
+
+
+async def mypowers(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    ud = get_user(user.id, user.username or user.first_name or "User", user.first_name)
+    active = ud.get("powers") or []
+    if not active:
+        await update.message.reply_text("✨ You have no active powers. See /powers or /ph")
+        return
+    lines = ["✨ <b>ʏᴏᴜʀ ᴀᴄᴛɪᴠᴇ ᴘᴏᴡᴇʀꜱ</b>\n"]
+    for k in active:
+        info = POWERS_CATALOG.get(k, {"name": k, "emoji": "❓", "desc": ""})
+        lines.append(f"{info['emoji']} <b>{info['name']}</b> — {info['desc']}")
+    await update.message.reply_text("\n".join(lines), parse_mode="HTML")
+
+
+async def pay(update, context):
+    if update.effective_chat and update.effective_chat.type != "private":
+        await update.message.reply_text("⚠️ Tʜɪꜱ Cᴏᴍᴍᴀɴᴅ Oɴʟʏ Wᴏʀᴋꜱ Iɴ Tʜᴇ ᴍɪᴋᴏ Bᴏᴛ'斯的 Dᴍ.")
+        return
+
+    await update.message.reply_text(
+        "💳 <b>ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ</b>\n\n"
+        "Premium unlocks gem usage, extra commands, and priority features.\n"
+        "Plans (example pricing):\n"
+        "• 1 Month — 10 Gems / 50 Stars\n"
+        "• 3 Months — 25 Gems / 120 Stars\n"
+        "• Lifetime — 100 Gems\n\n"
+        "Purchase via /gems (India) or /fgems (Stars)",
+        parse_mode="HTML",
+    )
+
+
+async def claim(update, context):
+    chat = update.effective_chat
+    if not chat or chat.type == "private":
+        await update.message.reply_text("🚫 Tʜɪꜱ Gʀᴏᴜᴘ Nᴇᴇᴅꜱ Aᴛ Lᴇᴀꜱᴛ 500 Mᴇᴍʙᴇʀꜱ Tᴏ Cʟᴀɪᴍ Rᴇᴡᴀʀᴅ.")
+        return
+
+    try:
+        member_count = await context.bot.get_chat_member_count(chat.id)
+    except Exception:
+        member_count = 0
+
+    if member_count < 500:
+        await update.message.reply_text("🚫 Tʜɪꜱ Gʀᴏᴜᴘ Nᴇᴇᴅꜱ Aᴛ Lᴇᴀꜱᴛ 500 Mᴇᴍʙᴇʀꜱ Tᴏ Cʟᴀɪᴍ Rᴇᴡᴀʀᴅ.")
+        return
+
+    user = update.effective_user
+    ud = get_user(user.id, user.username or user.first_name or "User", user.first_name)
+    if ud.get("claimed_group_bonus"):
+        await update.message.reply_text("🎁 You already claimed the group bonus!")
+        return
+    reward = 10000
+    update_user(user.id, balance=ud["balance"] + reward, claimed_group_bonus=True)
+    await update.message.reply_text(
+        f"🎁 CLAIMED! +${reward} added to your balance!\n"
+        f"Conditions: add Miko to a group with 500+ members.\n"
+        f"New balance: ${ud['balance'] + reward}"
+    )
+
+
+COUPONS_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "coupons.json")
+
+
+def _get_coupons() -> Dict[str, Any]:
+    if not os.path.exists(COUPONS_FILE):
+        return {}
+    try:
+        with open(COUPONS_FILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _save_coupons(data: Dict[str, Any]):
+    try:
+        with open(COUPONS_FILE, "w") as f:
+            json.dump(data, f, indent=2)
+    except Exception:
+        pass
+
+
+async def _is_admin(chat, user_id, context) -> bool:
+    try:
+        member = await context.bot.get_chat_member(chat.id, user_id)
+        return member.status in ("creator", "administrator")
+    except Exception:
+        return False
+
+
+async def coupons(update, context):
+    await update.message.reply_text(
+        "🎟 ᴍɪᴋᴏ Cᴜᴛɪᴇ Cᴏᴜᴘᴏɴꜱ Gᴜɪᴅᴇ 🎟\n\n"
+        "🔹 /create_coupon - ᴄʀᴇᴀᴛᴇ ᴄᴏᴜᴘᴏɴ ᴄᴏᴅᴇ ꜰᴏʀ ᴜʀ ɢᴄ\n"
+        "🔹 /coupon - ᴄʟᴀɪᴍ ᴄᴏᴜᴘᴏɴ ɪɴ ᴛʜɪꜱ ɢᴄ\n"
+        "🔹 /del_coupon - ᴅᴇʟᴇᴛᴇ ᴛʜᴇ ᴄᴏᴜᴘᴏɴ ᴄᴏᴅᴇ\n"
+        "🔹 /status - ᴄʜᴇᴄᴋ ꜱᴛᴀᴛᴜꜱ ᴏꜰ ᴄᴏᴜᴘᴏɴ ᴄᴏᴅᴇ\n\n"
+        "🥀 ʏᴏᴜ ᴄᴀɴ'ᴛ ᴄʀᴇᴀᴛᴇ 2 ᴄᴏᴜᴘᴏɴꜱ ꜰᴏʀ ꜱᴀᴍᴇ ɢʀᴏᴜᴘ. ꜰᴏʀ ᴄʀᴇᴀᴛɪɴɢ ᴀɴᴏᴛʜᴇʀ ᴄᴏᴜᴘᴏɴ ᴄᴏᴅᴇ ʏᴏᴜ ʜᴀᴠᴇ ᴛᴏ ᴅᴇʟᴇᴛᴇ ᴘʀᴇᴠɪᴏᴜꜱ ᴏɴᴇ."
+    )
+
+
+async def create_coupon(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    if not chat or chat.type == "private":
+        await update.message.reply_text("🎟️ You can only create coupons inside a group!")
+        return
+
+    args = context.args or []
+    if len(args) < 3:
+        await update.message.reply_text("⚠️ Uꜱᴀɢᴇ: /create_coupon <code> <amount> <limit>")
+        return
+
+    all_coupons = _get_coupons()
+    chat_key = str(chat.id)
+    if chat_key in all_coupons:
+        await update.message.reply_text("🥀 ʏᴏᴜ ᴄᴀɴ'ᴛ ᴄʀᴇᴀᴛᴇ 2 ᴄᴏᴜᴘᴏɴꜱ ꜰᴏʀ ꜱᴀᴍᴇ ɢʀᴏᴜᴘ. ꜰᴏʀ ᴄʀᴇᴀᴛɪɴɢ ᴀɴᴏᴛʜᴇʀ ᴄᴏᴜᴘᴏɴ ᴄᴏᴅᴇ ʏᴏᴜ ʜᴀᴠᴇ ᴛᴏ ᴅᴇʟᴇᴛᴇ ᴘʀᴇᴠɪᴏᴜꜱ ᴏɴᴇ.")
+        return
+
+    code = str(args[0]).upper().strip()
+    try:
+        amount = int(float(str(args[1]).replace("$", "").replace(",", "")))
+        limit = int(args[2])
+    except Exception:
+        await update.message.reply_text("⚠️ Uꜱᴀɢᴇ: /create_coupon <code> <amount> <limit>")
+        return
+
+    if amount <= 0 or limit <= 0:
+        await update.message.reply_text("❌ Amount and limit must be positive numbers.")
+        return
+
+    user = update.effective_user
+    ud = get_user(user.id, user.username or user.first_name or "User", user.first_name)
+    total_cost = amount * limit
+
+    if ud["balance"] < total_cost:
+        await update.message.reply_text(
+            f"💸 ɪɴꜱᴜꜰꜰɪᴄɪᴇɴᴛ ʙᴀʟᴀɴᴄᴇ!\n"
+            f"Need: ${total_cost} (${amount} × {limit} claims)\n"
+            f"Your balance: ${ud['balance']}"
+        )
+        return
+
+    update_user(user.id, balance=ud["balance"] - total_cost)
+    all_coupons[chat_key] = {
+        "code": code,
+        "amount": amount,
+        "limit": limit,
+        "claimed_by": [],
+        "created_by": user.id,
+        "created_at": datetime.now().isoformat(),
+    }
+    _save_coupons(all_coupons)
+
+    await update.message.reply_text(
+        f"✅ <b>Cᴏᴜᴘᴏɴ Cʀᴇᴀᴛᴇᴅ!</b>\n\n"
+        f"🎟️ Cᴏᴅᴇ: <code>{code}</code>\n"
+        f"💰 Rᴇᴡᴀʀᴅ: ${amount} ᴇᴀᴄʜ\n"
+        f"👥 Lɪᴍɪᴛ: {limit} ᴜꜱᴇʀꜱ\n"
+        f"💵 Tᴏᴛᴀʟ Pᴏᴏʟ: ${total_cost}\n\n"
+        f"Claim command: <code>/coupon {code}</code>",
+        parse_mode="HTML",
+    )
+
+
+async def claim_coupon(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    if not chat or chat.type == "private":
+        await update.message.reply_text("🎟️ Coupons can only be claimed in group chats!")
+        return
+
+    all_coupons = _get_coupons()
+    chat_key = str(chat.id)
+    if chat_key not in all_coupons:
+        await update.message.reply_text("⚠️ Tʜɪꜱ ɢʀᴏᴜᴘ ᴅᴏᴇꜱɴ'ᴛ ʜᴀᴠᴇ ᴀɴʏ ᴀᴄᴛɪᴠᴇ ᴄᴏᴜᴘᴏɴꜱ.")
+        return
+
+    c = all_coupons[chat_key]
+    args = context.args or []
+    if not args:
+        await update.message.reply_text("🎟️ Usage: <code>/coupon &lt;code&gt;</code>", parse_mode="HTML")
+        return
+
+    code_input = str(args[0]).upper().strip()
+    if code_input != c["code"]:
+        await update.message.reply_text("❌ Invalid coupon code for this group.")
+        return
+
+    user = update.effective_user
+    if user.id in c["claimed_by"]:
+        await update.message.reply_text("⚠️ You have already claimed this coupon!")
+        return
+
+    if len(c["claimed_by"]) >= c["limit"]:
+        await update.message.reply_text("🥀 This coupon has reached its maximum claim limit.")
+        return
+
+    c["claimed_by"].append(user.id)
+    _save_coupons(all_coupons)
+
+    ud = get_user(user.id, user.username or user.first_name or "User", user.first_name)
+    update_user(user.id, balance=ud["balance"] + c["amount"])
+
+    left = c["limit"] - len(c["claimed_by"])
+    await update.message.reply_text(
+        f"🎉 <b>Cᴏᴜᴘᴏɴ Cʟᴀɪᴍᴇᴅ!</b>\n"
+        f"💰 +${c['amount']} added to your balance!\n"
+        f"👥 {left} claim(s) remaining.",
+        parse_mode="HTML",
+    )
+
+
+async def del_coupon(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    if not chat or chat.type == "private":
+        await update.message.reply_text("🎟️ Coupons can only be deleted in group chats!")
+        return
+
+    user = update.effective_user
+    ud = get_user(user.id, user.username or user.first_name or "User", user.first_name)
+    is_admin = await _is_admin(chat, user.id, context)
+    is_prem = ud.get("premium", False)
+
+    if not (is_admin and is_prem):
+        await update.message.reply_text("❗️ Yᴏᴜ Mᴜꜱᴛ Bᴇ Pʀᴇᴍɪᴜᴍ Uꜱᴇʀ Aɴᴅ Gʀᴏᴜᴘ Aᴅᴍɪɴ Bᴏᴛʜ Tᴏ ᴅᴇʟᴇᴛᴇ ᴄᴏᴜᴘᴏɴꜱ.")
+        return
+
+    all_coupons = _get_coupons()
+    chat_key = str(chat.id)
+    if chat_key not in all_coupons:
+        await update.message.reply_text("⚠️ Nᴏ ᴀᴄᴛɪᴠᴇ ᴄᴏᴜᴘᴏɴꜱ ɪɴ ᴛʜɪꜱ ɢʀᴏᴜᴘ.")
+        return
+
+    c = all_coupons[chat_key]
+    remaining_claims = max(0, c["limit"] - len(c["claimed_by"]))
+    refund = remaining_claims * c["amount"]
+
+    if refund > 0:
+        creator_d = get_user(c["created_by"])
+        update_user(c["created_by"], balance=creator_d["balance"] + refund)
+
+    del all_coupons[chat_key]
+    _save_coupons(all_coupons)
+
+    await update.message.reply_text(
+        f"🗑️ <b>Cᴏᴜᴘᴏɴ <code>{c['code']}</code> Dᴇʟᴇᴛᴇᴅ!</b>\n"
+        f"💵 Refunded ${refund} to creator.",
+        parse_mode="HTML",
+    )
+
+
+async def coupon_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    if not chat or chat.type == "private":
+        await update.message.reply_text("ℹ️ Check coupon status in group chats!")
+        return
+
+    all_coupons = _get_coupons()
+    chat_key = str(chat.id)
+    if chat_key not in all_coupons:
+        await update.message.reply_text("⚠️ Nᴏ ᴀᴄᴛɪᴠᴇ ᴄᴏᴜᴘᴏɴꜱ ɪɴ ᴛʜɪꜱ ɢʀᴏᴜᴘ.")
+        return
+
+    c = all_coupons[chat_key]
+    claimed_count = len(c["claimed_by"])
+    left = max(0, c["limit"] - claimed_count)
+
+    await update.message.reply_text(
+        f"📊 <b>Cᴏᴜᴘᴏɴ Sᴛᴀᴛᴜꜱ</b>\n\n"
+        f"🎟️ Cᴏᴅᴇ: <code>{c['code']}</code>\n"
+        f"💰 Rᴇᴡᴀʀᴅ: ${c['amount']} ᴇᴀᴄʜ\n"
+        f"👥 Cʟᴀɪᴍᴇᴅ: {claimed_count}/{c['limit']}\n"
+        f"✨ Rᴇᴍᴀɪɴɪɴɢ: {left} ᴄʟᴀɪᴍ(ꜱ)\n"
+        f"🔄 Sᴛᴀᴛᴜꜱ: {'🟢 Aᴄᴛɪᴠᴇ' if left > 0 else '🔴 Exʜᴀᴜꜱᴛᴇᴅ'}",
+        parse_mode="HTML",
+    )
+
+
+HANDLERS = {
+    "ph": ph,
+    "powers": powers_list,
+    "pinfo": pinfo,
+    "activate": activate,
+    "act": activate,
+    "mypowers": mypowers,
+    "mp": mypowers,
+    "pay": pay,
+    "claim": claim,
+    "coupons": coupons,
+    "create_coupon": create_coupon,
+    "coupon": claim_coupon,
+    "del_coupon": del_coupon,
+    "status": coupon_status,
+}
