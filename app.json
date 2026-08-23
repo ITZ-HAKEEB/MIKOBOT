@@ -1,0 +1,46 @@
+{
+  "name": "Miko Bot",
+  "description": "Multi-feature Telegram Bot with Economy, Games, AI DM Chatbot, Social & Management tools",
+  "repository": "https://github.com/nishkarshk212/Miko",
+  "logo": "https://telegra.ph/file/0c9a75908b8b0e7747e92.jpg",
+  "keywords": ["telegram", "bot", "python", "economy", "games", "ai", "miko"],
+  "stack": "container",
+  "env": {
+    "BOT_TOKEN": {
+      "description": "Your Telegram Bot Token from @BotFather",
+      "value": "8819748668:AAFQCGx_I0e-MHKlTQIZjYKA0KSwKZYLUQY",
+      "required": true
+    },
+    "OWNER_ID": {
+      "description": "The Telegram User ID of the Bot Owner",
+      "value": "7408854697",
+      "required": true
+    },
+    "OPENROUTER_API_KEY": {
+      "description": "OpenRouter API Key for Miko AI Chatbot",
+      "value": "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",
+      "required": false
+    },
+    "REDIS_URL": {
+      "description": "Redis Connection URL for fast caching",
+      "value": "rediss://:p98827a3f7f619e71f89933b124319976c83b7b5d99e28a15e01f48eea633a414@ec2-52-73-55-112.compute-1.amazonaws.com:32000",
+      "required": false
+    },
+    "MONGO_URL": {
+      "description": "MongoDB Connection String for persistent database",
+      "value": "mongodb+srv://lily_music:Nishkarsh123@lilymusic.3bdrl7s.mongodb.net/?appName=lilymusic",
+      "required": false
+    }
+  },
+  "formation": {
+    "worker": {
+      "quantity": 1,
+      "size": "eco"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ]
+}
