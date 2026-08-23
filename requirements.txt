@@ -9,3 +9,5 @@ gTTS
 deep-translator
 sympy
 html2image
+razorpay
+aiohttp

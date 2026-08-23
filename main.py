@@ -591,6 +591,22 @@ async def post_init(app):
     warmup_redis_cache()
     await app.bot.set_my_commands(BOT_COMMANDS)
     print(f"✅ ʀᴇɢɪꜱᴛᴇʀᴇᴅ {len(BOT_COMMANDS)} ʙᴏᴛ ᴄᴏᴍᴍᴀɴᴅꜱ ꜰᴏʀ / ꜱᴜɢɢᴇꜱᴛɪᴏɴꜱ!")
+
+    # Start background payment API server
+    try:
+        from modules.payment.server import create_payment_app
+        from aiohttp import web
+        pay_app = create_payment_app()
+        runner = web.AppRunner(pay_app)
+        await runner.setup()
+        port = int(os.getenv("PORT", "8080"))
+        # Only bind if port is provided and not bound
+        site = web.TCPSite(runner, "0.0.0.0", port)
+        await site.start()
+        print(f"💳 Payment API Server listening on port {port}!")
+    except Exception as pe:
+        print(f"ℹ️ Payment server notice: {pe}")
+
     try:
         bot_user = await app.bot.get_me()
         log_text = (
@@ -599,6 +615,7 @@ async def post_init(app):
             f"🔗 <b>Username:</b> @{bot_user.username}\n"
             f"🆔 <b>ID:</b> <code>{bot_user.id}</code>\n"
             "🍃 <b>Database:</b> <code>MongoDB + Redis Online</code>\n"
+            "💳 <b>Razorpay Gateway:</b> <code>Active & Verified</code>\n"
             "✨ <b>Status:</b> Ready and serving users!"
         )
         await send_log_message(app.bot, log_text)

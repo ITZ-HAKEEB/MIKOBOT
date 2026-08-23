@@ -117,14 +117,17 @@ async def pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "ʏᴏᴜ ᴄᴀɴ ʀᴇᴘᴏʀᴛ ᴀɴʏ ɪꜱꜱᴜᴇ ᴛʜʀᴏᴜɢʜ ᴛʜᴇ ᴅᴍ ᴏꜰ ᴛʜɪꜱ ᴄʜᴀɴɴᴇʟ : @Developer_World_Advay"
     )
 
+    user = update.effective_user
+    uid = user.id if user else 0
+
     keyboard = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("💳 PAY NOW", url="https://t.me/i_mikoo/12"),
-            InlineKeyboardButton("💰 ADD FUNDS", url="https://t.me/i_mikoo/14"),
+            InlineKeyboardButton("💳 PAY NOW", url=f"https://mike-payment.vercel.app/checkout.html?user_id={uid}"),
+            InlineKeyboardButton("💰 ADD FUNDS", url=f"https://mike-payment.vercel.app/checkout.html?plan=starter&user_id={uid}"),
         ],
         [
             InlineKeyboardButton("💓 FEATURES", url="https://t.me/i_mikoo/11"),
-            InlineKeyboardButton("📜 TERMS AND REFUND", url="https://t.me/i_mikoo"),
+            InlineKeyboardButton("📜 TERMS AND REFUND", url="https://mike-payment.vercel.app/refund.html"),
         ],
     ])
 
