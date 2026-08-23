@@ -4,6 +4,7 @@ import os
 import io
 import re
 import random
+import unicodedata
 import base64
 import html as html_lib
 from typing import Optional, Dict, Any, List
@@ -802,30 +803,22 @@ NAME_FONT_MAP: Dict[str, str] = {
     "z": "ᴢ"
 }
 
-# Regex to remove ornament signs, emojis, symbols, Tibetan marks, etc.
-ORNAMENT_PATTERN = re.compile(
-    r'['
-    r'\u0f00-\u0fff'           # Tibetan signs & ornaments (࿐, ༒, ༺, ༻, etc.)
-    r'\u2600-\u27bf'           # Miscellaneous symbols & Dingbats (★, ✿, ⚡, etc.)
-    r'\U0001f300-\U0001f9ff'   # Emojis & Pictographs (👑, 🥀, 🦋, ✨, etc.)
-    r'\U0001fa00-\U0001faff'   # Symbols and Pictographs Extended
-    r'\ufe00-\ufe0f'           # Variation selectors
-    r'亗★☆♛👑⚡✿❀❁❃᭄™©®ʚɞ✦✧𖤍༒༺༻ᯓ✪✫✬✭✮✯✰✨🥀🦋🕊🔥❄️🖤🤍❤️🌸🧸🎀'
-    r']+'
-)
-
 def style_author_name(name: str) -> str:
-    """Remove existing ornaments/emojis and convert normal text into the desired small-cap font with floral suffix."""
+    """Normalize fancy unicode fonts, strip all decorative symbols/emojis/CJK marks, and apply small-cap font with floral suffix."""
     if not name:
         return "Uꜱᴇʀ ࿐"
-    
-    # Strip existing ornaments, symbols and emojis
-    cleaned = ORNAMENT_PATTERN.sub('', name)
-    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+
+    # Normalize mathematical/bold/italic fancy unicode fonts to basic Latin (e.g. 𝐀𝐝𝐯𝐚𝐲 -> Advay)
+    norm = unicodedata.normalize("NFKD", str(name))
+
+    # Strip any characters that are NOT standard Latin, Devanagari, Arabic, Cyrillic, Numbers, or Space
+    cleaned = re.sub(r"[^a-zA-Z0-9\s\u0900-\u097F\u0600-\u06FF\u0400-\u04FF]", "", norm)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+
     if not cleaned:
         cleaned = "User"
 
-    converted = "".join(NAME_FONT_MAP.get(char, char) for char in cleaned)
+    converted = "".join(NAME_FONT_MAP.get(c, c) for c in cleaned)
     return f"{converted} ࿐"
 
 
