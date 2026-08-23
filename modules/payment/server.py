@@ -8,9 +8,11 @@ from modules.utils.storage import get_user, update_user
 from modules.utils.logger import send_log_message
 
 PLANS = {
-    "starter": {"name": "Starter Gems Pack", "amount_paise": 4900, "gems": 6.0, "premium": False},
-    "month_vip": {"name": "1 Month VIP Subscription", "amount_paise": 9900, "gems": 12.0, "premium": True},
-    "vip_pro": {"name": "3 Months Pro VIP", "amount_paise": 24900, "gems": 35.0, "premium": True},
+    "1_month": {"name": "1 Month Premium", "amount_paise": 1500, "months": 1, "gems": 5.0, "price_inr": 15},
+    "2_months": {"name": "2 Months Premium", "amount_paise": 3000, "months": 2, "gems": 10.0, "price_inr": 30},
+    "3_months": {"name": "3 Months Premium", "amount_paise": 4000, "months": 3, "gems": 18.0, "price_inr": 40},
+    "6_months": {"name": "6 Months Premium", "amount_paise": 5000, "months": 6, "gems": 40.0, "price_inr": 50},
+    "12_months": {"name": "12 Months Premium", "amount_paise": 7500, "months": 12, "gems": 100.0, "price_inr": 75},
 }
 
 
@@ -22,19 +24,18 @@ async def handle_create_order(request: web.Request) -> web.Response:
         return web.json_response({"error": "Invalid JSON body"}, status=400)
 
     user_id = data.get("user_id") or 0
-    amount = data.get("amount") # in paise or INR
-    plan_key = data.get("plan_key", "starter")
+    amount = data.get("amount")
+    plan_key = data.get("plan_key", "1_month")
 
     if plan_key in PLANS:
         amount_paise = PLANS[plan_key]["amount_paise"]
         plan_name = PLANS[plan_key]["name"]
     elif amount:
-        # If amount provided in INR or paise
         amount_paise = int(amount * 100) if amount < 1000 else int(amount)
-        plan_name = data.get("plan_name", "Custom Topup")
+        plan_name = data.get("plan_name", "Custom Premium Plan")
     else:
-        amount_paise = 4900
-        plan_name = "Starter Gems Pack"
+        amount_paise = 1500
+        plan_name = "1 Month Premium"
 
     if amount_paise < 100:
         return web.json_response({"error": "Amount must be at least ₹1.00 (100 paise)"}, status=400)
@@ -64,7 +65,7 @@ async def handle_verify_payment(request: web.Request) -> web.Response:
     payment_id = data.get("razorpay_payment_id") or data.get("payment_id")
     signature = data.get("razorpay_signature") or data.get("signature")
     user_id = data.get("user_id")
-    plan_key = data.get("plan_key", "starter")
+    plan_key = data.get("plan_key", "1_month")
 
     if not order_id or not payment_id or not signature:
         return web.json_response({"error": "Missing order_id, payment_id, or signature"}, status=400)
@@ -78,20 +79,21 @@ async def handle_verify_payment(request: web.Request) -> web.Response:
     if user_id and str(user_id).isdigit():
         uid = int(user_id)
         ud = get_user(uid)
-        plan_info = PLANS.get(plan_key, {"gems": 6.0, "premium": False, "name": "Payment Topup"})
+        plan_info = PLANS.get(plan_key, {"gems": 5.0, "name": "1 Month Premium", "months": 1})
         
         new_gems = round(ud.get("gems", 0.0) + plan_info["gems"], 2)
-        updates = {"gems": new_gems}
-        if plan_info["premium"]:
-            updates["premium"] = True
+        updates = {
+            "gems": new_gems,
+            "premium": True,
+        }
         
         update_user(uid, **updates)
         credited = True
-        print(f"🎉 Successfully credited {plan_info['gems']} gems to User {uid} (Payment ID: {payment_id})")
+        print(f"🎉 Successfully activated VIP Premium and credited {plan_info['gems']} gems to User {uid} (Payment ID: {payment_id})")
 
     return web.json_response({
         "success": True,
-        "message": "Payment verified successfully!",
+        "message": "Payment verified successfully! Premium activated.",
         "order_id": order_id,
         "payment_id": payment_id,
         "credited": credited,
@@ -109,7 +111,6 @@ async def handle_config(request: web.Request) -> web.Response:
 
 def create_payment_app() -> web.Application:
     app = web.Application()
-    # CORS middleware
     async def cors_middleware(app, handler):
         async def middleware_handler(request):
             if request.method == "OPTIONS":
