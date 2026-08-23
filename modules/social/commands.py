@@ -1563,7 +1563,6 @@ async def own(update: Update, context: ContextTypes.DEFAULT_TYPE):
         input_sticker = InputSticker(
             sticker=src_sticker.file_id,
             emoji_list=[emoji],
-            format=st_format,
         )
 
         pack_exists = False
