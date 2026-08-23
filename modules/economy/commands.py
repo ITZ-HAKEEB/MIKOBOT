@@ -344,14 +344,14 @@ async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
     add_xp(user.id, xp_reward)
 
     msg = (
-        "🎁 Yᴏᴜ Rᴇᴄᴇɪᴠᴇᴅ:\n"
+        "<b>🎁 Yᴏᴜ Rᴇᴄᴇɪᴠᴇᴅ:\n"
         f"💰 ${reward}\n"
         f"⭐ +{xp_reward} XP\n"
-        "🔥 Sᴛʀᴇᴀᴋ: 1/1\n\n"
+        "🔥 Sᴛʀᴇᴀᴋ: 1/1</b>\n\n"
         "💓 Uᴘɢʀᴀᴅᴇ Tᴏ Pʀᴇᴍɪᴜᴍ Fᴏʀ Hɪɢʜᴇʀ Rᴇᴡᴀʀᴅꜱ & Sᴋɪᴘ Vᴇʀɪꜰɪᴄᴀᴛɪᴏɴ → /pay\n\n"
         "❕ Cʜᴇᴄᴋ Yᴏᴜʀ Dᴀɪʟʏ Tᴀꜱᴋꜱ Uꜱɪɴɢ: /task"
     )
-    await update.message.reply_text(msg)
+    await update.message.reply_text(msg, parse_mode="HTML")
 
 
 async def wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -871,8 +871,10 @@ async def task_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    clean_name = raw_name.replace("࿐", "").strip()
+
     text = (
-        f"📅 {raw_name} ࿐'ꜱ Dᴀɪʟʏ Tᴀꜱᴋ\n\n"
+        f"<b>📅 {html.escape(clean_name)} ࿐'ꜱ Dᴀɪʟʏ Tᴀꜱᴋ</b>\n\n"
         f"🎯 Wɪɴ ʀᴏᴜʟᴇᴛᴛᴇ 2 ᴛɪᴍᴇꜱ (2K+ ʙᴇᴛ, ᴍɪɴ 4 ᴘʟᴀʏᴇʀꜱ) ᴀɴᴅ ʀᴏʙ 18 ᴘʟᴀʏᴇʀꜱ\n\n"
         f"📊 ᴘʀᴏɢʀᴇꜱꜱ:\n"
         f"   🎮 ɢᴀᴍᴇꜱ: {game_prog}/{target_games}\n"
@@ -880,7 +882,7 @@ async def task_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🎁 ʀᴇᴡᴀʀᴅ: 1 🧩 ɢᴇᴍ ᴘᴀʀᴛ + {reward_money} 💰\n"
         f"(📊 {gem_parts}/3 ᴘᴀʀᴛꜱ ᴄᴏʟʟᴇᴄᴛᴇᴅ)"
     )
-    await update.message.reply_text(text)
+    await update.message.reply_text(text, parse_mode="HTML")
 
 
 HANDLERS = {
