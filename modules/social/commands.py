@@ -803,6 +803,21 @@ NAME_FONT_MAP: Dict[str, str] = {
     "z": "ᴢ"
 }
 
+# Regex to remove ornament signs, emojis, symbols, Tibetan marks, brackets, etc.
+ORNAMENT_PATTERN = re.compile(
+    r"["
+    r"\u0f00-\u0fff"           # Tibetan signs & ornaments (࿐, ༒, ༺, ༻, etc.)
+    r"\u2600-\u27bf"           # Miscellaneous symbols & Dingbats (★, ✿, ⚡, etc.)
+    r"\U0001f300-\U0001f9ff"   # Emojis & Pictographs (👑, 🥀, 🦋, ✨, etc.)
+    r"\U0001fa00-\U0001faff"   # Symbols and Pictographs Extended
+    r"\ufe00-\ufe0f"           # Variation selectors
+    r"亗★☆♛👑⚡✿❀❁❃᭄™©®ʚɞ✦✧𖤍༒༺༻ᯓ✪✫✬✭✮✯✰✨🥀🦋🕊🔥❄️🖤🤍❤️🌸🧸🎀"
+    r"•|~`×†‡〆メ彡父王"
+    r"『』【】「」《》〔〕"
+    r"ꨄ♡♥"
+    r"]+"
+)
+
 def style_author_name(name: str) -> str:
     """Normalize fancy unicode fonts and strip all decorative symbols/emojis/marks, keeping original clean name."""
     if not name:
@@ -811,11 +826,16 @@ def style_author_name(name: str) -> str:
     # Normalize mathematical/bold/italic fancy unicode fonts to basic Latin (e.g. 𝐀𝐝𝐯𝐚𝐲 -> Advay)
     norm = unicodedata.normalize("NFKD", str(name))
 
-    # Strip any characters that are NOT standard Latin, Devanagari, Arabic, Cyrillic, Numbers, or Space
-    cleaned = re.sub(r"[^a-zA-Z0-9\s\u0900-\u097F\u0600-\u06FF\u0400-\u04FF]", "", norm)
+    # Strip decorative symbols, dingbats, emojis, brackets
+    cleaned = ORNAMENT_PATTERN.sub("", norm)
     cleaned = re.sub(r"\s+", " ", cleaned).strip()
 
-    return cleaned if cleaned else "User"
+    if not cleaned:
+        # Fallback to stripped raw name if everything was removed
+        raw_fallback = re.sub(r"\s+", " ", str(name)).strip()
+        cleaned = raw_fallback if raw_fallback else "User"
+
+    return cleaned
 
 
 def generate_quote_sticker(
@@ -1027,8 +1047,32 @@ async def q_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    target_user = replied.from_user or update.effective_user
-    author_name = getattr(target_user, "full_name", None) or target_user.first_name or target_user.username or "User"
+    target_user = replied.from_user
+    author_name = "User"
+    user_id_for_photo = None
+
+    if target_user:
+        user_id_for_photo = target_user.id
+        author_name = (
+            f"{target_user.first_name} {target_user.last_name}".strip()
+            if target_user.last_name
+            else (target_user.first_name or target_user.username or "User")
+        )
+    elif replied.sender_chat:
+        author_name = replied.sender_chat.title or "Channel"
+    elif getattr(replied, "forward_sender_name", None):
+        author_name = replied.forward_sender_name
+    elif getattr(replied, "forward_from", None):
+        ff = replied.forward_from
+        user_id_for_photo = ff.id
+        author_name = f"{ff.first_name} {ff.last_name}".strip() if ff.last_name else (ff.first_name or ff.username or "User")
+    elif getattr(replied, "forward_from_chat", None):
+        author_name = replied.forward_from_chat.title or "Channel"
+    elif update.effective_user:
+        target_user = update.effective_user
+        user_id_for_photo = target_user.id
+        author_name = target_user.first_name or target_user.username or "User"
+
     text = replied.text or replied.caption or (
         "[Sticker]" if replied.sticker else (
             "[Photo]" if replied.photo else (
@@ -1040,16 +1084,17 @@ async def q_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     avatar_bytes = None
-    try:
-        photos = await context.bot.get_user_profile_photos(target_user.id, limit=1)
-        if photos.total_count > 0:
-            photo_file = photos.photos[0][-1]
-            file_obj = await context.bot.get_file(photo_file.file_id)
-            av_buf = io.BytesIO()
-            await file_obj.download_to_memory(av_buf)
-            avatar_bytes = av_buf.getvalue()
-    except Exception:
-        pass
+    if user_id_for_photo:
+        try:
+            photos = await context.bot.get_user_profile_photos(user_id_for_photo, limit=1)
+            if photos.total_count > 0:
+                photo_file = photos.photos[0][-1]
+                file_obj = await context.bot.get_file(photo_file.file_id)
+                av_buf = io.BytesIO()
+                await file_obj.download_to_memory(av_buf)
+                avatar_bytes = av_buf.getvalue()
+        except Exception:
+            pass
 
     bg_color = "#181226"
     text_color = "#FFFFFF"
