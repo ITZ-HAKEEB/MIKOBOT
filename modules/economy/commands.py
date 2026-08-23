@@ -449,12 +449,18 @@ async def kill_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         update_user(target.id, powers=powers)
         await update.message.reply_html(f"🥷 {tn} used Cloak! Attack blocked.")
         return
+    import time
     if td.get("protected"):
-        update_user(target.id, protected=False)
-        await update.message.reply_html(
-            f"🛡️ {tn} had a shield! It broke."
-        )
-        return
+        protected_until = td.get("protected_until")
+        if protected_until and time.time() > protected_until:
+            update_user(target.id, protected=False)
+        else:
+            await update.message.reply_text(
+                "🛡️ Vɪᴄᴛɪᴍ Iꜱ Pʀᴏᴛᴇᴄᴛᴇᴅ Rɪɢʜᴛ Nᴏᴡ.\n"
+                "🔒Cʜᴇᴄᴋ Pʀᴏᴛᴇᴄᴛɪᴏɴ Tɪ姆ᴇ → /check"
+                .replace("姆", "")
+            )
+            return
     chance = 0.85 if "rampage" in (ad.get("powers") or []) else 0.65
     success = random.random() < chance
     if success:
@@ -525,10 +531,18 @@ async def rob_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         update_user(target.id, powers=powers)
         await update.message.reply_html(f"🥷 Target used Cloak! Robbery blocked.")
         return
+    import time
     if td.get("protected"):
-        update_user(target.id, protected=False)
-        await update.message.reply_html(f"🛡️ Target had a shield! Robbery blocked.")
-        return
+        protected_until = td.get("protected_until")
+        if protected_until and time.time() > protected_until:
+            update_user(target.id, protected=False)
+        else:
+            await update.message.reply_text(
+                "🛡️ Vɪᴄᴛɪᴍ Iꜱ Pʀᴏᴛᴇᴄᴛᴇᴅ Rɪɢʜᴛ Nᴏᴡ.\n"
+                "🔒Cʜᴇᴄᴋ Pʀᴏᴛᴇᴄᴛɪᴏɴ Tɪ姆ᴇ → /check"
+                .replace("姆", "")
+            )
+            return
 
     gained = int(amount * 0.90)
 

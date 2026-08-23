@@ -1400,17 +1400,30 @@ async def check_emoji(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     break
 
     if not target_id:
-        await update.message.reply_text("⚠️  Uꜱᴀɢᴇ: /check Rᴇᴘʟʏ Oʀ Uꜱᴇʀ Iᴅ.")
-        return
+        target_id = caller.id
+        target_obj = caller
 
     ud_t = get_user(target_id)
     raw_name = ud_t.get("display_name") or (target_obj.first_name if target_obj else None) or ud_t.get("username") or f"User {target_id}"
     mention = f'<a href="tg://user?id={target_id}">{html_lib.escape(raw_name)}</a>'
     emoji = ud_t.get("emoji") or "❌ None"
 
+    import time
+    now_ts = time.time()
+    prot_until = ud_t.get("protected_until", 0)
+    if ud_t.get("protected") and prot_until and prot_until > now_ts:
+        rem_secs = int(prot_until - now_ts)
+        hrs = rem_secs // 3600
+        mins = (rem_secs % 3600) // 60
+        secs = rem_secs % 60
+        prot_str = f"{hrs}ʜ {mins}ᴍ {secs}ꜱ Rᴇᴍᴀɪɴɪɴɢ"
+    else:
+        prot_str = "❌ Nᴏɴᴇ"
+
     await update.message.reply_text(
         f"✨ <b>Uꜱᴇʀ Cʜᴇᴄᴋ</b> — {mention}\n"
         f"✨ Eᴍᴏᴊɪ: {emoji}\n"
+        f"🛡️ Pʀᴏᴛᴇᴄᴛɪᴏɴ: {prot_str}\n"
         f"👑 Pʀᴇᴍɪᴜᴍ: {'Yᴇꜱ' if ud_t.get('premium') else 'Nᴏ'}",
         parse_mode="HTML",
     )
