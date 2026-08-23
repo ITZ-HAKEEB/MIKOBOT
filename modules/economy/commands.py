@@ -460,9 +460,12 @@ async def kill_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if success:
         loot_pct = 0.9 if "rampage" in (ad.get("powers") or []) else 1.0
         max_loot = int(min(max(td["balance"], 50), random.randint(50, 200)) * loot_pct)
-        if "vault" in powers:
-            max_loot = min(max_loot, int(td["balance"] * 0.30))
-        update_user(attacker.id, balance=ad["balance"] + max_loot, kills=ad["kills"] + 1)
+        update_user(
+            attacker.id,
+            balance=ad["balance"] + max_loot,
+            kills=ad.get("kills", 0) + 1,
+            daily_kills=ad.get("daily_kills", 0) + 1,
+        )
         update_user(target.id, balance=td["balance"] - max_loot, status="dead")
         xp_gain = random.randint(3, 10)
         add_xp(attacker.id, xp_gain)

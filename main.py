@@ -44,19 +44,26 @@ async def pfp(update: Update, context: ContextTypes.DEFAULT_TYPE):
     raw_name = ud.get("display_name") or getattr(user, "full_name", None) or user.first_name or "User"
     mention = f'<a href="tg://user?id={user.id}">{html.escape(raw_name)}</a>'
 
-    daily_kills = ud.get("daily_kills", 0)
-    daily_robs = ud.get("daily_robs", 0)
-    gems = ud.get("gems", 0)
+    # Ensure stats accurately reflect database values
+    daily_kills = ud.get("daily_kills")
+    if daily_kills is None or daily_kills == 0:
+        daily_kills = ud.get("kills", 0)
+
+    daily_robs = ud.get("daily_robs")
+    if daily_robs is None or daily_robs == 0:
+        daily_robs = ud.get("robs", 0)
+
+    gems = float(ud.get("gems", 0.0) or 0.0)
     gems_val = int(gems * 10000)
-    gems_disp = int(gems) if isinstance(gems, (int, float)) and gems == int(gems) else gems
-    wallet = ud.get("wallet_balance", ud.get("balance", 0))
+    gems_disp = int(gems) if gems == int(gems) else round(gems, 2)
+    wallet = ud.get("balance", 0)
 
     caption = (
         f"👤 {mention}'ꜱ Pʀᴏꜰɪʟᴇ\n\n"
         f"☠️ Dᴀɪʟʏ Kɪʟʟꜱ : {daily_kills}/200\n"
         f"🔪 Dᴀɪʟʏ Rᴏʙꜱ : {daily_robs}/150\n"
         f"💎 Gᴇᴍꜱ : {gems_disp} (${gems_val})\n"
-        f"💼 Wᴀʟʟᴇᴛ : {wallet}"
+        f"💼 Wᴀʟʟᴇᴛ : ${wallet}"
     )
 
     try:
@@ -202,6 +209,7 @@ def _collect_handlers():
     all_handlers.update(MANAGEMENT_COMMANDS)
     all_handlers.update(PLACEHOLDER_HANDLERS)
     all_handlers["pfp"] = pfp
+    all_handlers["profile"] = pfp
     return all_handlers
 
 
