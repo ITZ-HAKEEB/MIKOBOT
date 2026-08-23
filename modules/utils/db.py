@@ -45,6 +45,14 @@ except Exception as e:
     _mongo_db = None
 
 
+def get_redis_client() -> Optional[redis.Redis]:
+    return _redis_client
+
+
+def get_mongo_db() -> Optional[pymongo.database.Database]:
+    return _mongo_db
+
+
 # --- CHATS & USERS TRACKING FOR BROADCAST ---
 
 def add_chat(chat_id: int) -> None:
