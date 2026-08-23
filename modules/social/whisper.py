@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import uuid
+import html
 from typing import Optional, Dict, Any
 
 from telegram import (
@@ -69,6 +70,8 @@ def get_whisper(whisper_id: str) -> Optional[Dict[str, Any]]:
 
 
 async def inline_whisper_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.inline_query:
+        return
     query = update.inline_query.query.strip()
     sender = update.inline_query.from_user
 
@@ -84,9 +87,8 @@ async def inline_whisper_handler(update: Update, context: ContextTypes.DEFAULT_T
         results = [
             InlineQueryResultArticle(
                 id="whisper_help",
-                title="—Mɪᴋᴏ 亗 | 🤫 Send Whisper Message",
+                title="—Mɪᴋᴏ 亗 | 🤫 Whisper Message",
                 description="Just type: @i_mikobot <username/userid> <your whisper text>",
-                thumb_url="https://telegra.ph/file/0c9a75908b8b0e7747e92.jpg",
                 input_message_content=InputTextMessageContent(help_text, parse_mode="HTML"),
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("✨ Try Whisper", switch_inline_query_current_chat="")]
@@ -119,13 +121,15 @@ async def inline_whisper_handler(update: Update, context: ContextTypes.DEFAULT_T
         "target_username": target_username,
         "target_disp": target_disp,
         "text": whisper_text,
+        "is_read": False,
+        "read_by": None,
     }
 
     save_whisper(whisper_id, whisper_data)
 
     msg_text = (
         f"🔒 <b>A secret whisper message for {target_disp}!</b>\n"
-        f"<i>Only {target_disp} and {sender.first_name} can open this.</i>"
+        f"<i>Only {target_disp} can see this whisper!</i>"
     )
 
     kb = InlineKeyboardMarkup([
@@ -135,9 +139,8 @@ async def inline_whisper_handler(update: Update, context: ContextTypes.DEFAULT_T
     results = [
         InlineQueryResultArticle(
             id=whisper_id,
-            title=f"🤫 Send Whisper to {target_disp}",
-            description=f"Message: {whisper_text[:40]}{'...' if len(whisper_text) > 40 else ''}",
-            thumb_url="https://telegra.ph/file/0c9a75908b8b0e7747e92.jpg",
+            title=f"Whisper to {target_disp}",
+            description=f"Message: {whisper_text}",
             input_message_content=InputTextMessageContent(msg_text, parse_mode="HTML"),
             reply_markup=kb,
         )
@@ -168,9 +171,31 @@ async def whisper_callback_handler(update: Update, context: ContextTypes.DEFAULT
     is_target_id = w_data.get("target_id") and user_id == w_data["target_id"]
     is_target_uname = w_data.get("target_username") and user_uname == w_data["target_username"]
 
-    if is_sender or is_target_id or is_target_uname:
+    if is_sender:
         await query.answer(f"🤫 Secret Whisper:\n\n{w_data['text']}", show_alert=True)
-    else:
-        await query.answer("❌ This whisper is not for you!", show_alert=True)
+        return True
 
+    if is_target_id or is_target_uname:
+        # Mark as read & update group message text!
+        w_data["is_read"] = True
+        w_data["read_by"] = user.first_name
+        save_whisper(whisper_id, w_data)
+
+        reader_name = user.first_name or "User"
+        reader_mention = f'<a href="tg://user?id={user.id}">{html.escape(reader_name)}</a>'
+        read_text = f"✅ <b>Tʜɪꜱ Wʜɪꜱᴘᴇʀ Hᴀꜱ Bᴇᴇɴ Rᴇᴀᴅ Bʏ</b> {reader_mention}"
+
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔒 Show Whisper", callback_data=f"wspr_{whisper_id}")]
+        ])
+
+        try:
+            await query.edit_message_text(text=read_text, parse_mode="HTML", reply_markup=kb)
+        except Exception:
+            pass
+
+        await query.answer(f"🤫 Secret Whisper:\n\n{w_data['text']}", show_alert=True)
+        return True
+
+    await query.answer("❌ This whisper is not for you!", show_alert=True)
     return True
