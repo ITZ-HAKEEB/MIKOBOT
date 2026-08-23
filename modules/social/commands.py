@@ -806,9 +806,9 @@ def generate_quote_sticker(
         except Exception:
             return default
 
-    # Load high-definition fonts (Bold for author name, Regular/Normal for message text)
-    font_bold_path = "assets/fonts/Roboto-Bold.ttf"
-    font_reg_path = "assets/fonts/Roboto-Regular.ttf"
+    # Load high-definition fonts (Bold & Big for author name, Regular/Normal for message text)
+    font_bold_path = "assets/fonts/NotoSans-Bold.ttf" if os.path.exists("assets/fonts/NotoSans-Bold.ttf") else "assets/fonts/Roboto-Bold.ttf"
+    font_reg_path = "assets/fonts/NotoSans-Regular.ttf" if os.path.exists("assets/fonts/NotoSans-Regular.ttf") else "assets/fonts/Roboto-Regular.ttf"
     font_dev_bold_path = "assets/fonts/NotoSansDevanagari-Bold.ttf"
     font_dev_reg_path = "assets/fonts/NotoSansDevanagari-Regular.ttf"
 
@@ -823,10 +823,10 @@ def generate_quote_sticker(
     if not os.path.exists(file_text):
         file_text = font_reg_path if os.path.exists(font_reg_path) else file_name
 
-    # Author in BOLD (42px), Message in NORMAL (46px)
+    # Author Name Bold & Big (44px), Message Normal (40px)
     if file_name and file_text:
-        font_name = ImageFont.truetype(file_name, 42)
-        font_text = ImageFont.truetype(file_text, 46)
+        font_name = ImageFont.truetype(file_name, 44)
+        font_text = ImageFont.truetype(file_text, 40)
     else:
         font_name = ImageFont.load_default()
         font_text = ImageFont.load_default()
@@ -836,7 +836,7 @@ def generate_quote_sticker(
     # Process newlines and word wrapping
     raw_lines = text.split("\n")
     lines = []
-    max_line_width = 620
+    max_line_width = 580
 
     for r_line in raw_lines:
         words = r_line.split()
@@ -862,7 +862,7 @@ def generate_quote_sticker(
     name_w = name_bbox[2] - name_bbox[0]
     name_h = name_bbox[3] - name_bbox[1]
 
-    line_h = 58
+    line_h = 52
     text_total_h = len(lines) * line_h
 
     content_w = name_w
@@ -872,8 +872,8 @@ def generate_quote_sticker(
 
     is_cloud = shape in ("cloud", "cloudy")
 
-    pad_left = 44 if is_cloud else 36
-    pad_right = 78 if is_cloud else 72
+    pad_left = 52 if is_cloud else 36
+    pad_right = 72 if is_cloud else 72
     pad_top = 34 if is_cloud else 26
     pad_bottom = 34 if is_cloud else 28
 
@@ -922,27 +922,30 @@ def generate_quote_sticker(
     by = total_h - bubble_h - bottom_clearance - 10
 
     if is_cloud:
-        # Puffy Cloud dialogue bubble
-        draw.rounded_rectangle([(bx + 14, by + 14), (bx + bubble_w - 14, by + bubble_h - 14)], radius=24, fill=bg_rgb)
+        # Cartoon Scalloped Cloud Speech Bubble matching reference image
+        draw.rounded_rectangle([(bx + 20, by + 20), (bx + bubble_w - 20, by + bubble_h - 20)], radius=32, fill=bg_rgb)
 
-        num_x = max(3, int(bubble_w / 50))
-        step_x = (bubble_w - 30) / num_x
-        for i in range(num_x + 1):
-            cx = bx + 15 + i * step_x
-            draw.ellipse([(cx - 24, by - 14), (cx + 24, by + 34)], fill=bg_rgb)
-            draw.ellipse([(cx - 24, by + bubble_h - 34), (cx + 24, by + bubble_h + 14)], fill=bg_rgb)
+        nx = max(3, int(bubble_w / 90))
+        sx = (bubble_w - 60) / nx
+        for i in range(nx + 1):
+            cx = bx + 30 + i * sx
+            draw.ellipse([(cx - 36, by - 16), (cx + 36, by + 48)], fill=bg_rgb)
+            draw.ellipse([(cx - 36, by + bubble_h - 48), (cx + 36, by + bubble_h + 16)], fill=bg_rgb)
 
-        num_y = max(2, int(bubble_h / 50))
-        step_y = (bubble_h - 30) / num_y
-        for j in range(num_y + 1):
-            cy = by + 15 + j * step_y
-            draw.ellipse([(bx - 16, cy - 22), (bx + 32, cy + 22)], fill=bg_rgb)
-            draw.ellipse([(bx + bubble_w - 32, cy - 22), (bx + bubble_w + 16, cy + 22)], fill=bg_rgb)
+        ny = max(2, int(bubble_h / 80))
+        sy = (bubble_h - 50) / ny
+        for j in range(ny + 1):
+            cy = by + 25 + j * sy
+            draw.ellipse([(bx - 18, cy - 34), (bx + 44, cy + 34)], fill=bg_rgb)
+            draw.ellipse([(bx + bubble_w - 44, cy - 34), (bx + bubble_w + 18, cy + 34)], fill=bg_rgb)
 
-        # Cloud thought bubbles leading to avatar
-        draw.ellipse([(bx - 10, by + bubble_h - 12), (bx + 16, by + bubble_h + 14)], fill=bg_rgb)
-        draw.ellipse([(bx - 22, by + bubble_h + 8), (bx - 4, by + bubble_h + 26)], fill=bg_rgb)
-        draw.ellipse([(bx - 32, by + bubble_h + 22), (bx - 18, by + bubble_h + 36)], fill=bg_rgb)
+        # Pointed speech tail pointing towards the avatar
+        tail = [
+            (bx + 28, by + bubble_h - 10),
+            (bx - 16, by + bubble_h + 18),
+            (bx + 72, by + bubble_h),
+        ]
+        draw.polygon(tail, fill=bg_rgb)
     else:
         # Classic dialogue bubble
         draw.rounded_rectangle([(bx, by), (bx + bubble_w, by + bubble_h)], radius=26, fill=bg_rgb)
@@ -953,7 +956,7 @@ def generate_quote_sticker(
         ]
         draw.polygon(tail, fill=bg_rgb)
 
-    # User's name in BOLD
+    # User's name in BOLD & BIG
     draw.text((bx + pad_left, by + pad_top), author_name, fill=author_rgb, font=font_name)
 
     # Message text in NORMAL
