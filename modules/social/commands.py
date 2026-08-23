@@ -805,19 +805,27 @@ def generate_quote_sticker(
         except Exception:
             return default
 
-    # Load high-definition bold fonts
+    # Load high-definition fonts (Bold for author name, Regular/Normal for message text)
     font_bold_path = "assets/fonts/Roboto-Bold.ttf"
-    font_dev_path = "assets/fonts/NotoSansDevanagari-Bold.ttf"
+    font_reg_path = "assets/fonts/Roboto-Regular.ttf"
+    font_dev_bold_path = "assets/fonts/NotoSansDevanagari-Bold.ttf"
+    font_dev_reg_path = "assets/fonts/NotoSansDevanagari-Regular.ttf"
 
-    is_hindi = any("\u0900" <= ch <= "\u097f" for ch in (text + author_name))
-    font_file = font_dev_path if (is_hindi and os.path.exists(font_dev_path)) else font_bold_path
+    is_hindi_name = any("\u0900" <= ch <= "\u097f" for ch in author_name)
+    is_hindi_text = any("\u0900" <= ch <= "\u097f" for ch in text)
 
-    if not os.path.exists(font_file):
-        font_file = font_bold_path if os.path.exists(font_bold_path) else None
+    file_name = font_dev_bold_path if is_hindi_name and os.path.exists(font_dev_bold_path) else font_bold_path
+    file_text = font_dev_reg_path if is_hindi_text and os.path.exists(font_dev_reg_path) else font_reg_path
 
-    if font_file:
-        font_name = ImageFont.truetype(font_file, 36)
-        font_text = ImageFont.truetype(font_file, 42)
+    if not os.path.exists(file_name):
+        file_name = font_bold_path if os.path.exists(font_bold_path) else None
+    if not os.path.exists(file_text):
+        file_text = font_reg_path if os.path.exists(font_reg_path) else file_name
+
+    # Author in BOLD (42px), Message in NORMAL (46px)
+    if file_name and file_text:
+        font_name = ImageFont.truetype(file_name, 42)
+        font_text = ImageFont.truetype(file_text, 46)
     else:
         font_name = ImageFont.load_default()
         font_text = ImageFont.load_default()
@@ -827,7 +835,7 @@ def generate_quote_sticker(
     # Process newlines and word wrapping
     raw_lines = text.split("\n")
     lines = []
-    max_line_width = 540
+    max_line_width = 620
 
     for r_line in raw_lines:
         words = r_line.split()
@@ -853,7 +861,7 @@ def generate_quote_sticker(
     name_w = name_bbox[2] - name_bbox[0]
     name_h = name_bbox[3] - name_bbox[1]
 
-    line_h = 52
+    line_h = 58
     text_total_h = len(lines) * line_h
 
     content_w = name_w
@@ -861,17 +869,19 @@ def generate_quote_sticker(
         b = dummy_draw.textbbox((0, 0), l, font=font_text)
         content_w = max(content_w, b[2] - b[0])
 
-    pad_left = 32
-    pad_right = 84
-    pad_top = 24
-    pad_bottom = 32
+    pad_left = 36
+    pad_right = 72
+    pad_top = 26
+    pad_bottom = 28
 
-    bubble_w = max(int(content_w + pad_left + pad_right), 310)
+    bubble_w = max(int(content_w + pad_left + pad_right), 320)
     bubble_h = int(name_h + 18 + text_total_h + pad_top + pad_bottom)
 
-    avatar_size = 96
+    avatar_size = 104
+    bottom_clearance = 36  # Transparent elevation above Telegram timestamp
+
     total_w = avatar_size + 18 + bubble_w + 20
-    total_h = max(avatar_size + 20, bubble_h + 20)
+    total_h = max(avatar_size + 20, bubble_h + 20) + bottom_clearance
 
     img = Image.new("RGBA", (int(total_w), int(total_h)), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
@@ -881,7 +891,7 @@ def generate_quote_sticker(
     author_rgb = hex_to_rgb(author_color, (255, 121, 198, 255))
 
     av_x = 10
-    av_y = total_h - avatar_size - 10
+    av_y = total_h - avatar_size - bottom_clearance - 10
 
     if avatar_bytes:
         try:
@@ -906,20 +916,22 @@ def generate_quote_sticker(
         )
 
     bx = av_x + avatar_size + 14
-    by = total_h - bubble_h - 10
-    draw.rounded_rectangle([(bx, by), (bx + bubble_w, by + bubble_h)], radius=24, fill=bg_rgb)
+    by = total_h - bubble_h - bottom_clearance - 10
+    draw.rounded_rectangle([(bx, by), (bx + bubble_w, by + bubble_h)], radius=26, fill=bg_rgb)
 
     # Sleek dialogue tail pointing towards the avatar
     tail = [
-        (bx + 4, by + bubble_h - 26),
-        (bx - 12, by + bubble_h - 6),
-        (bx + 20, by + bubble_h),
+        (bx + 4, by + bubble_h - 28),
+        (bx - 14, by + bubble_h - 8),
+        (bx + 22, by + bubble_h),
     ]
     draw.polygon(tail, fill=bg_rgb)
 
+    # User's name in BOLD
     draw.text((bx + pad_left, by + pad_top), author_name, fill=author_rgb, font=font_name)
 
-    cur_y = by + pad_top + name_h + 16
+    # Message text in NORMAL
+    cur_y = by + pad_top + name_h + 18
     for l in lines:
         draw.text((bx + pad_left, cur_y), l, fill=text_rgb, font=font_text)
         cur_y += line_h
