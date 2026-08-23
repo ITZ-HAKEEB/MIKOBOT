@@ -1608,26 +1608,33 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def tr(update, context):
     args = context.args or []
-    target_lang = "en"
-    text = None
+    replied = update.message.reply_to_message if update.message else None
     
-    if args:
-        if len(args[0]) <= 5 and not args[0].isdigit():
-            target_lang = args[0].lower()
-            if len(args) > 1:
-                text = " ".join(args[1:])
+    if not replied and not args:
+        await update.message.reply_text("🥀 Uꜱᴀɢᴇ: /tr <Rᴇᴘʟʏ> <Lᴀɴɢᴜᴀɢᴇ Nᴀᴍᴇ>")
+        return
+
+    text = None
+    target_lang = "en"
+
+    if replied:
+        text = replied.text or replied.caption
+        if args:
+            target_lang = args[0].strip().lower()
+    elif args:
+        if len(args) >= 2:
+            target_lang = args[0].strip().lower()
+            text = " ".join(args[1:])
         else:
-            text = " ".join(args)
-            
-    if not text and update.message.reply_to_message:
-        text = update.message.reply_to_message.text or update.message.reply_to_message.caption
-        
+            await update.message.reply_text("🥀 Uꜱᴀɢᴇ: /tr <Rᴇᴘʟʏ> <Lᴀɴɢᴜᴀɢᴇ Nᴀᴍᴇ>")
+            return
+
     if not text:
-        await update.message.reply_text("🌐 Usage: /tr <lang> <text> (or reply to a message with /tr <lang>)")
+        await update.message.reply_text("🥀 Uꜱᴀɢᴇ: /tr <Rᴇᴘʟʏ> <Lᴀɴɢᴜᴀɢᴇ Nᴀᴍᴇ>")
         return
 
     try:
-        translated = GoogleTranslator(source="auto", target=target_lang).translate(text[:500])
+        translated = GoogleTranslator(source="auto", target=target_lang).translate(text[:800])
         await update.message.reply_text(
             f"🌐 <b>Translation ({target_lang}):</b>\n\n{translated}",
             parse_mode="HTML",
