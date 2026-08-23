@@ -855,12 +855,12 @@ def generate_quote_sticker(
         content_w = max(content_w, b[2] - b[0])
 
     pad_left = 32
-    pad_right = 36
+    pad_right = 84
     pad_top = 24
-    pad_bottom = 24
+    pad_bottom = 32
 
-    bubble_w = max(int(content_w + pad_left + pad_right), 240)
-    bubble_h = int(name_h + 16 + text_total_h + pad_top + pad_bottom)
+    bubble_w = max(int(content_w + pad_left + pad_right), 310)
+    bubble_h = int(name_h + 18 + text_total_h + pad_top + pad_bottom)
 
     avatar_size = 96
     total_w = avatar_size + 18 + bubble_w + 20
