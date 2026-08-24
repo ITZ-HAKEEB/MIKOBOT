@@ -112,6 +112,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    # Deep-link routing (e.g. /start spay_123456789)
+    if context.args:
+        start_param = context.args[0].lower().strip()
+        if start_param.startswith("spay_") or start_param.startswith("pay_") or start_param in ("spay", "pay"):
+            uid_str = ""
+            if "_" in start_param:
+                uid_str = start_param.split("_")[1]
+            target_uid = int(uid_str) if uid_str.isdigit() else user.id
+            context.args = [str(target_uid)]
+            from modules.premium.commands import spay_cmd
+            await spay_cmd(update, context)
+            return
+
     ud = get_user(user.id, username, display_name)
     keyboard = [
         [InlineKeyboardButton("🍀 ᴍɪᴋᴏ ꜰᴇᴀᴛᴜʀᴇꜱ", callback_data="miko_features")],

@@ -4,7 +4,7 @@ ADVAY_NAME = "Λᴅᴠᴀʏ"
 
 BOT_COMMANDS = [
     BotCommand("start", "Talk To Miko"),
-    BotCommand("pay", "Buy Miko VIP Premium (/pay user_id)"),
+    BotCommand("spay", "Buy Miko VIP Premium with Stars (/spay user_id)"),
     BotCommand("premium", "Buy Miko VIP Premium (/premium user_id)"),
     BotCommand("addprem", "Owner: Grant VIP Premium (/addprem user_id)"),
     BotCommand("gems", "Check Your Gems"),

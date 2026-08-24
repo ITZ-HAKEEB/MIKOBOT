@@ -113,25 +113,25 @@ STARS_PLANS = {
 }
 
 
-async def pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Direct 1-tap Telegram Stars payment invoice: /pay <user_id> [months]"""
+async def spay_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Direct 1-tap Telegram Stars payment invoice: /spay <user_id> [months]"""
     if update.effective_chat and update.effective_chat.type != "private":
         await update.message.reply_text("⚠️ Tʜɪꜱ Cᴏᴍᴍᴀɴᴅ Oɴʟʏ Wᴏʀᴋꜱ Iɴ Tʜᴇ ᴍɪᴋᴏ Bᴏᴛ'ꜱ Dᴍ.")
         return
 
     if not context.args:
-        await update.message.reply_text("⚠️ <b>Usage :</b> <code>/pay user_id</code>", parse_mode="HTML")
+        await update.message.reply_text("⚠️ <b>Usage :</b> <code>/spay user_id</code>", parse_mode="HTML")
         return
 
     target_id_str = context.args[0].strip()
     if not target_id_str.isdigit():
-        await update.message.reply_text("⚠️ <b>Usage :</b> <code>/pay user_id</code>", parse_mode="HTML")
+        await update.message.reply_text("⚠️ <b>Usage :</b> <code>/spay user_id</code>", parse_mode="HTML")
         return
 
     target_uid = int(target_id_str)
     chat_id = update.effective_chat.id
 
-    # Support optional month parameter: /pay <user_id> [1|2|3|6|12]
+    # Support optional month parameter: /spay <user_id> [1|2|3|6|12]
     months = 1
     if len(context.args) > 1 and context.args[1].isdigit():
         req_m = int(context.args[1])
@@ -164,8 +164,8 @@ async def pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def fpay(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Alias to pay command for backward compatibility"""
-    await pay(update, context)
+    """Alias to spay command for backward compatibility"""
+    await spay_cmd(update, context)
 
 
 async def send_stars_invoice(query, context, callback_data: str):
@@ -584,7 +584,8 @@ async def deposit_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(confirm_msg, parse_mode="HTML", disable_web_page_preview=True)
 
 
-premium = pay
+premium = spay_cmd
+spay = spay_cmd
 
 HANDLERS = {
     "ph": ph,
@@ -594,10 +595,12 @@ HANDLERS = {
     "act": activate,
     "mypowers": mypowers,
     "mp": mypowers,
-    "pay": pay,
-    "premium": pay,
-    "prem": pay,
-    "fpay": fpay,
+    "spay": spay_cmd,
+    "starspay": spay_cmd,
+    "stars_pay": spay_cmd,
+    "premium": spay_cmd,
+    "prem": spay_cmd,
+    "fpay": spay_cmd,
     "deposit": deposit_cmd,
     "topup": deposit_cmd,
     "claim": claim,
