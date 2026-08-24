@@ -987,8 +987,9 @@ async def setgroup_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if current_home and current_home == chat.id:
         await update.message.reply_text(
-            f"✅ Tʜɪꜱ ɪꜱ ᴀʟʀᴇᴀᴅʏ ʏᴏᴜʀ ʜᴏᴍᴇ ɢʀᴏᴜᴘ!\n"
-            f"📍 Yᴏᴜ ᴀᴘᴘᴇᴀʀ ɪɴ ᴛʜɪꜱ ɢʀᴏᴜᴘ'ꜱ Tᴏᴘ 5 ʀɪᴄʜ ʟɪꜱᴛ."
+            f"⚠️ Yᴏᴜ ʜᴀᴠᴇ Aʟʀᴇᴀᴅʏ Sᴇᴛ Tʜɪꜱ Gʀᴏᴜᴘ Aꜱ Yᴏᴜʀ Hᴏᴍᴇ Gʀᴏᴜᴘ!\n"
+            f"📍 Yᴏᴜ Aʀᴇ Aʟʀᴇᴀᴅʏ Iɴ Tʜɪꜱ Gʀᴏᴜᴘ'ꜱ Tᴏᴘ 5 Rɪᴄʜ Lɪꜱᴛ.\n"
+            f"💡 Uꜱᴇ /resetgroup Iꜰ Yᴏᴜ Wᴀɴᴛ Tᴏ Cʜᴀɴɢᴇ Yᴏᴜʀ Hᴏᴍᴇ Gʀᴏᴜᴘ."
         )
         return
 
