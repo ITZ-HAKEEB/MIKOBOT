@@ -686,6 +686,13 @@ async def post_init(app):
     await app.bot.set_my_commands(BOT_COMMANDS)
     print(f"✅ ʀᴇɢɪꜱᴛᴇʀᴇᴅ {len(BOT_COMMANDS)} ʙᴏᴛ ᴄᴏᴍᴍᴀɴᴅꜱ ꜰᴏʀ / ꜱᴜɢɢᴇꜱᴛɪᴏɴꜱ!")
 
+    # Start background protection expiry alert monitor
+    try:
+        from modules.economy.protection_monitor import start_protection_monitor
+        asyncio.create_task(start_protection_monitor(app.bot))
+    except Exception as me:
+        print(f"⚠️ Protection monitor startup error: {me}")
+
     # Start background payment API server
     try:
         from modules.payment.server import create_payment_app

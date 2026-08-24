@@ -416,7 +416,7 @@ async def protect_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     import time
     now_ts = time.time()
     protected_until = now_ts + (days * 86400)
-    update_user(user.id, balance=ud["balance"] - cost, protected=True, protected_until=protected_until)
+    update_user(user.id, balance=ud["balance"] - cost, protected=True, protected_until=protected_until, protection_alerts=[])
     await update.message.reply_text(
         f"🛡️ ʏᴏᴜ'ʀᴇ ɴᴏᴡ ᴘʀᴏᴛᴇᴄᴛᴇᴅ ꜰʀᴏᴍ /kill &amp; /rob ꜰᴏʀ {days} ᴅᴀʏ(ꜱ)! (-${cost})",
         parse_mode="HTML",

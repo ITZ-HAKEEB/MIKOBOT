@@ -33,6 +33,8 @@ DEFAULT_USER = {
     "past_names": [],
     "past_usernames": [],
     "home_group": None,
+    "protected_until": 0,
+    "protection_alerts": [],
 }
 
 POWERS_CATALOG: Dict[str, Dict[str, Any]] = {
