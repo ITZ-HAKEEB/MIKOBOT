@@ -101,6 +101,67 @@ async def handle_verify_payment(request: web.Request) -> web.Response:
     })
 
 
+async def handle_razorpay_webhook(request: web.Request) -> web.Response:
+    """POST /api/razorpay-webhook - Auto verify manual Razorpay / UPI payments"""
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "Invalid JSON"}, status=400)
+
+    event = data.get("event", "")
+    print(f"🔔 [RAZORPAY WEBHOOK] Received event: {event}")
+
+    if event in ["payment.captured", "order.paid"]:
+        payment_entity = data.get("payload", {}).get("payment", {}).get("entity", {})
+        amount_paise = payment_entity.get("amount", 0)
+        amount_inr = amount_paise / 100
+        notes = payment_entity.get("notes", {})
+        description = payment_entity.get("description", "")
+        contact = payment_entity.get("contact", "")
+        email = payment_entity.get("email", "")
+
+        # Try to extract user_id from notes, description, or custom fields
+        target_uid = None
+        for k in ["user_id", "telegram_id", "id", "uid", "tg_id"]:
+            if k in notes and str(notes[k]).isdigit():
+                target_uid = int(notes[k])
+                break
+
+        if not target_uid:
+            # Check description for numbers
+            import re
+            numbers = re.findall(r"\b\d{8,12}\b", description + " " + json.dumps(notes))
+            if numbers:
+                target_uid = int(numbers[0])
+
+        # Map amount to plan
+        plan_months = 1
+        free_gems = 1.0
+        if amount_inr >= 75:
+            plan_months = 12
+            free_gems = 12.0
+        elif amount_inr >= 50:
+            plan_months = 6
+            free_gems = 6.0
+        elif amount_inr >= 40:
+            plan_months = 3
+            free_gems = 3.0
+        elif amount_inr >= 30:
+            plan_months = 2
+            free_gems = 2.0
+        elif amount_inr >= 15:
+            plan_months = 1
+            free_gems = 1.0
+
+        if target_uid:
+            ud = get_user(target_uid)
+            new_gems = round(ud.get("gems", 0.0) + free_gems, 2)
+            update_user(target_uid, premium=True, gems=new_gems)
+            print(f"🎉 [AUTO-VERIFIED] ₹{amount_inr} payment captured! Activated {plan_months} Month(s) Premium for User {target_uid} (+{free_gems} Gems)")
+
+    return web.json_response({"status": "ok"})
+
+
 async def handle_config(request: web.Request) -> web.Response:
     """GET /api/config"""
     return web.json_response({
@@ -133,5 +194,6 @@ def create_payment_app() -> web.Application:
     app.middlewares.append(cors_middleware)
     app.router.add_post("/api/create-order", handle_create_order)
     app.router.add_post("/api/verify-payment", handle_verify_payment)
+    app.router.add_post("/api/razorpay-webhook", handle_razorpay_webhook)
     app.router.add_get("/api/config", handle_config)
     return app

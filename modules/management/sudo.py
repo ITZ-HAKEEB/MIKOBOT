@@ -140,3 +140,64 @@ async def sudolist_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lines.append("<i>No extra sudo users added yet.</i>")
 
     await update.message.reply_text("\n".join(lines), parse_mode="HTML")
+
+
+async def addprem_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Owner / Sudo command to instantly grant VIP Premium & Free Gems"""
+    caller = update.effective_user
+    if not caller or not is_sudo_user(caller.id):
+        await update.message.reply_text("🚫 Only Bot Owner / Sudoers can grant VIP Premium!")
+        return
+
+    target_id, target_name = await _resolve_sudo_target(update, context)
+    if not target_id:
+        await update.message.reply_text("⚠️ <b>Usage:</b> <code>/addprem &lt;user_id|@username&gt; [months]</code>", parse_mode="HTML")
+        return
+
+    months = 1
+    args = context.args or []
+    if len(args) > 1 and args[1].isdigit():
+        req_m = int(args[1])
+        if req_m in [1, 2, 3, 6, 12]:
+            months = req_m
+
+    gems_map = {1: 1.0, 2: 2.0, 3: 3.0, 6: 6.0, 12: 12.0}
+    free_gems = gems_map.get(months, 1.0)
+
+    ud = get_user(target_id)
+    new_gems = round(ud.get("gems", 0.0) + free_gems, 2)
+    update_user(target_id, premium=True, gems=new_gems)
+
+    days = months * 30 if months != 12 else 365
+    msg = (
+        f"👑 <b>VIP Pʀᴇᴍɪᴜᴍ Aᴄᴛɪᴠᴀᴛᴇᴅ!</b>\n\n"
+        f"👤 <b>User:</b> {html_lib.escape(target_name)}\n"
+        f"🆔 <b>ID:</b> <code>{target_id}</code>\n"
+        f"⏳ <b>Duration:</b> {months} Month(s) ({days} Days)\n"
+        f"💎 <b>Bonus Gems Credited:</b> +{int(free_gems)} 💎\n"
+        f"✨ <b>Total Gems Balance:</b> {new_gems} 💎\n"
+        f"🌟 <b>Status:</b> Active & Verified"
+    )
+    await update.message.reply_text(msg, parse_mode="HTML")
+
+
+async def delprem_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Owner / Sudo command to revoke VIP Premium"""
+    caller = update.effective_user
+    if not caller or not is_sudo_user(caller.id):
+        await update.message.reply_text("🚫 Only Bot Owner / Sudoers can revoke VIP Premium!")
+        return
+
+    target_id, target_name = await _resolve_sudo_target(update, context)
+    if not target_id:
+        await update.message.reply_text("⚠️ <b>Usage:</b> <code>/delprem &lt;user_id|@username&gt;</code>", parse_mode="HTML")
+        return
+
+    update_user(target_id, premium=False)
+    await update.message.reply_text(
+        f"🚫 <b>VIP Premium Revoked!</b>\n\n"
+        f"👤 <b>User:</b> {html_lib.escape(target_name)}\n"
+        f"🆔 <b>ID:</b> <code>{target_id}</code>\n"
+        f"❌ User is now back to Normal tier.",
+        parse_mode="HTML"
+    )
