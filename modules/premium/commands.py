@@ -114,7 +114,11 @@ STARS_PLANS = {
 
 
 async def pay_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """User command /pay: Show Baka Premium Access menu matching screenshot"""
+    """User command /pay: Show Miko Premium Access menu matching screenshot"""
+    if update.effective_chat and update.effective_chat.type != "private":
+        await update.message.reply_text("⚠️ Tʜɪꜱ Cᴏᴍᴍᴀɴᴅ Oɴʟʏ Wᴏʀᴋꜱ Iɴ Tʜᴇ ᴍɪᴋᴏ Bᴏᴛ'ꜱ Dᴍ.")
+        return
+
     user = update.effective_user
     uid = user.id if user else 7408854697
 
