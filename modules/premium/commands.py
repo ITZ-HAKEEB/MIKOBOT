@@ -119,14 +119,14 @@ async def pay_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = user.id if user else 7408854697
 
     msg = (
-        "<b>BAKA PREMIUM ACCESS</b>\n\n"
-        "IMPORTANT NOTE: IF YOU ARE NOT AN INDIAN USER AND UNBALE TO BUY PREMIUM "
-        "FROM THE SITE THEN YOU CAN BUY BAKA PREMIUM USING TELEGRAM STARS USING "
-        "THIS COMMAND : /spay\n\n"
-        "IF YOU ARE FROM INDIA THEN YOU CAN BUY BAKA PREMIUM SIMPLY FROM THE "
-        "BELOW PAY NOW BUTTON\n"
-        "CHECK YOUR TELEGRAM ID : /id\n\n"
-        "YOU CAN REPORT ANY ISSUE THROUGH THE DM OF THIS CHANNEL : @Developer_World_Advay"
+        "<b>ʙᴀᴋᴀ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇꜱꜱ</b>\n\n"
+        "ɪᴍᴘᴏʀᴛᴀɴᴛ ɴᴏᴛᴇ: ɪꜰ ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴀɴ ɪɴᴅɪᴀɴ ᴜꜱᴇʀ ᴀɴᴅ ᴜɴʙᴀʟᴇ ᴛᴏ ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ "
+        "ꜰʀᴏᴍ ᴛʜᴇ ꜱɪᴛᴇ ᴛʜᴇɴ ʏᴏᴜ ᴄᴀɴ ʙᴜʏ ʙᴀᴋᴀ ᴘʀᴇᴍɪᴜᴍ ᴜꜱɪɴɢ ᴛᴇʟᴇɢʀᴀᴍ ꜱᴛᴀʀꜱ ᴜꜱɪɴɢ "
+        "ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ : /spay\n\n"
+        "ɪꜰ ʏᴏᴜ ᴀʀᴇ ꜰʀᴏᴍ ɪɴᴅɪᴀ ᴛʜᴇɴ ʏᴏᴜ ᴄᴀɴ ʙᴜʏ ʙᴀᴋᴀ ᴘʀᴇᴍɪᴜᴍ ꜱɪᴍᴘʟʏ ꜰʀᴏᴍ ᴛʜᴇ "
+        "ʙᴇʟᴏᴡ ᴘᴀʏ ɴᴏᴡ ʙᴜᴛᴛᴏɴ\n"
+        "ᴄʜᴇᴄᴋ ʏᴏᴜʀ ᴛᴇʟᴇɢʀᴀᴍ ɪᴅ : /id\n\n"
+        "ʏᴏᴜ ᴄᴀɴ ʀᴇᴘᴏʀᴛ ᴀɴʏ ɪꜱꜱᴜᴇ ᴛʜʀᴏᴜɢʜ ᴛʜᴇ ᴅᴍ ᴏꜰ ᴛʜɪꜱ ᴄʜᴀɴɴᴇʟ : @Developer_World_Advay"
     )
 
     checkout_url = f"https://mike-payment.vercel.app/checkout.html?user_id={uid}"
