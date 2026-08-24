@@ -201,3 +201,46 @@ async def delprem_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"❌ User is now back to Normal tier.",
         parse_mode="HTML"
     )
+
+
+async def addfund_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Owner / Sudo command: /addfund <user_id> <amount_in_inr>"""
+    caller = update.effective_user
+    if not caller or not is_sudo_user(caller.id):
+        await update.message.reply_text("🚫 Only Bot Owner / Sudoers can add wallet funds!")
+        return
+
+    args = context.args or []
+    if len(args) < 2 and not update.message.reply_to_message:
+        await update.message.reply_text("⚠️ <b>Usage:</b> <code>/addfund &lt;user_id&gt; &lt;amount_in_inr&gt;</code>", parse_mode="HTML")
+        return
+
+    target_id, target_name = await _resolve_sudo_target(update, context)
+    if not target_id:
+        await update.message.reply_text("❌ Target user not found.")
+        return
+
+    try:
+        amount_inr = float(args[-1])
+    except Exception:
+        await update.message.reply_text("❌ Invalid INR amount.")
+        return
+
+    if amount_inr <= 0:
+        await update.message.reply_text("❌ Amount must be positive.")
+        return
+
+    ud = get_user(target_id)
+    new_bal = round(float(ud.get("prem_wallet", 0.0) or 0.0) + amount_inr, 2)
+    update_user(target_id, prem_wallet=new_bal)
+
+    await update.message.reply_text(
+        f"💳 <b>Pʀᴇᴍɪᴜᴍ Wᴀʟʟᴇᴛ Fᴜɴᴅꜱ Aᴅᴅᴇᴅ!</b>\n\n"
+        f"👤 <b>User:</b> {html_lib.escape(target_name)}\n"
+        f"🆔 <b>ID:</b> <code>{target_id}</code>\n"
+        f"➕ <b>Credited:</b> ₹{amount_inr:,.2f}\n"
+        f"💼 <b>Total Wallet Balance:</b> ₹{new_bal:,.2f}\n"
+        f"✨ Funds ready for 1-tap VIP plan activations!",
+        parse_mode="HTML"
+    )
+

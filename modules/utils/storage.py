@@ -29,6 +29,7 @@ DEFAULT_USER = {
     "robs": 0,
     "daily_robs": 0,
     "bomb_wins": 0,
+    "prem_wallet": 0.0,
     "past_names": [],
     "past_usernames": [],
 }

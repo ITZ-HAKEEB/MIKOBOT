@@ -156,8 +156,9 @@ async def handle_razorpay_webhook(request: web.Request) -> web.Response:
         if target_uid:
             ud = get_user(target_uid)
             new_gems = round(ud.get("gems", 0.0) + free_gems, 2)
-            update_user(target_uid, premium=True, gems=new_gems)
-            print(f"🎉 [AUTO-VERIFIED] ₹{amount_inr} payment captured! Activated {plan_months} Month(s) Premium for User {target_uid} (+{free_gems} Gems)")
+            new_prem_wallet = round(ud.get("prem_wallet", 0.0) + amount_inr, 2)
+            update_user(target_uid, premium=True, gems=new_gems, prem_wallet=new_prem_wallet)
+            print(f"🎉 [AUTO-VERIFIED] ₹{amount_inr} payment captured! Activated {plan_months} Month(s) Premium for User {target_uid} (+{free_gems} Gems, Wallet: ₹{new_prem_wallet})")
 
     return web.json_response({"status": "ok"})
 
@@ -215,6 +216,7 @@ async def handle_user_profile(request: web.Request) -> web.Response:
             "bank": ud.get("wallet_balance", 0),
             "net_worth": ud.get("balance", 0) + ud.get("wallet_balance", 0),
             "gems": ud.get("gems", 0.0),
+            "prem_wallet": ud.get("prem_wallet", 0.0),
         },
         "stats": {
             "kills": ud.get("kills", 0),
@@ -237,6 +239,55 @@ async def handle_user_profile(request: web.Request) -> web.Response:
     }
 
     return web.json_response(response_data)
+
+
+async def handle_purchase_premium_wallet(request: web.Request) -> web.Response:
+    """POST /api/purchase-premium-wallet - Deduct funds from premium wallet and activate VIP"""
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"success": False, "error": "Invalid JSON"}, status=400)
+
+    uid = int(data.get("user_id", 0))
+    plan_key = data.get("plan_key", "1_month")
+
+    if not uid:
+        return web.json_response({"success": False, "error": "User ID is required"}, status=400)
+
+    if plan_key not in PLANS:
+        return web.json_response({"success": False, "error": f"Invalid plan: {plan_key}"}, status=400)
+
+    plan = PLANS[plan_key]
+    cost_inr = plan["amount_paise"] / 100
+    free_gems = float(plan.get("free_gems", 1.0))
+
+    ud = get_user(uid)
+    curr_wallet = float(ud.get("prem_wallet", 0.0) or 0.0)
+
+    if curr_wallet < cost_inr:
+        return web.json_response({
+            "success": False,
+            "error": "Insufficient wallet balance",
+            "required": cost_inr,
+            "current_wallet": curr_wallet,
+            "shortage": round(cost_inr - curr_wallet, 2),
+            "razorpay_url": "https://razorpay.me/@nishkarshkumar"
+        }, status=400)
+
+    new_wallet = round(curr_wallet - cost_inr, 2)
+    new_gems = round(float(ud.get("gems", 0.0) or 0.0) + free_gems, 2)
+
+    update_user(uid, prem_wallet=new_wallet, premium=True, gems=new_gems)
+
+    return web.json_response({
+        "success": True,
+        "message": f"🎉 Successfully activated {plan['name']}! ₹{cost_inr} deducted from your Premium Wallet (+{free_gems} Gems added).",
+        "plan_name": plan["name"],
+        "cost": cost_inr,
+        "remaining_wallet": new_wallet,
+        "gems": new_gems,
+        "premium": True
+    })
 
 
 async def handle_leaderboards(request: web.Request) -> web.Response:
@@ -280,6 +331,7 @@ async def handle_config(request: web.Request) -> web.Response:
         "key_id": RAZORPAY_KEY_ID,
         "currency": "INR",
         "plans": PLANS,
+        "add_fund_url": "https://razorpay.me/@nishkarshkumar"
     })
 
 
@@ -307,7 +359,9 @@ def create_payment_app() -> web.Application:
     app.router.add_post("/api/create-order", handle_create_order)
     app.router.add_post("/api/verify-payment", handle_verify_payment)
     app.router.add_post("/api/razorpay-webhook", handle_razorpay_webhook)
+    app.router.add_post("/api/purchase-premium-wallet", handle_purchase_premium_wallet)
     app.router.add_get("/api/user-profile", handle_user_profile)
     app.router.add_get("/api/leaderboards", handle_leaderboards)
     app.router.add_get("/api/config", handle_config)
     return app
+

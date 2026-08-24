@@ -852,7 +852,7 @@ async def handle_prefix_command(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 from modules.management.broadcast import broadcast_cmd
-from modules.management.sudo import addsudo_cmd, delsudo_cmd, sudolist_cmd, addprem_cmd, delprem_cmd
+from modules.management.sudo import addsudo_cmd, delsudo_cmd, sudolist_cmd, addprem_cmd, delprem_cmd, addfund_cmd
 
 MANAGEMENT_COMMANDS = {
     "ban": lambda u, c: cmd_ban(u, c, is_dban=False),
@@ -886,4 +886,6 @@ MANAGEMENT_COMMANDS = {
     "addprem": addprem_cmd,
     "delprem": delprem_cmd,
     "giveprem": addprem_cmd,
+    "addfund": addfund_cmd,
+    "addfunds": addfund_cmd,
 }
