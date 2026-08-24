@@ -113,6 +113,41 @@ STARS_PLANS = {
 }
 
 
+async def pay_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """User command /pay: Show Baka Premium Access menu matching screenshot"""
+    user = update.effective_user
+    uid = user.id if user else 7408854697
+
+    msg = (
+        "<b>BAKA PREMIUM ACCESS</b>\n\n"
+        "IMPORTANT NOTE: IF YOU ARE NOT AN INDIAN USER AND UNBALE TO BUY PREMIUM "
+        "FROM THE SITE THEN YOU CAN BUY BAKA PREMIUM USING TELEGRAM STARS USING "
+        "THIS COMMAND : /spay\n\n"
+        "IF YOU ARE FROM INDIA THEN YOU CAN BUY BAKA PREMIUM SIMPLY FROM THE "
+        "BELOW PAY NOW BUTTON\n"
+        "CHECK YOUR TELEGRAM ID : /id\n\n"
+        "YOU CAN REPORT ANY ISSUE THROUGH THE DM OF THIS CHANNEL : @Developer_World_Advay"
+    )
+
+    checkout_url = f"https://mike-payment.vercel.app/checkout.html?user_id={uid}"
+    add_funds_url = f"https://mike-payment.vercel.app/app.html?tab=premium&user_id={uid}"
+    features_url = "https://mike-payment.vercel.app/"
+    refund_url = "https://mike-payment.vercel.app/refund.html"
+
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("💳 PAY NOW", web_app=WebAppInfo(url=checkout_url)),
+            InlineKeyboardButton("💰 ADD FUNDS", web_app=WebAppInfo(url=add_funds_url)),
+        ],
+        [
+            InlineKeyboardButton("💗 FEATURES", url=features_url),
+            InlineKeyboardButton("📜 TERMS AND REFUND", url=refund_url),
+        ],
+    ])
+
+    await update.message.reply_text(msg, reply_markup=keyboard, parse_mode="HTML")
+
+
 async def spay_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Direct 1-tap Telegram Stars payment invoice: /spay <user_id> [months]"""
     if update.effective_chat and update.effective_chat.type != "private":
@@ -586,6 +621,7 @@ async def deposit_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 premium = spay_cmd
 spay = spay_cmd
+pay = pay_cmd
 
 HANDLERS = {
     "ph": ph,
@@ -595,11 +631,12 @@ HANDLERS = {
     "act": activate,
     "mypowers": mypowers,
     "mp": mypowers,
+    "pay": pay_cmd,
     "spay": spay_cmd,
     "starspay": spay_cmd,
     "stars_pay": spay_cmd,
-    "premium": spay_cmd,
-    "prem": spay_cmd,
+    "premium": pay_cmd,
+    "prem": pay_cmd,
     "fpay": spay_cmd,
     "deposit": deposit_cmd,
     "topup": deposit_cmd,
