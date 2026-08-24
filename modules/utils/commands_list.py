@@ -4,6 +4,7 @@ ADVAY_NAME = "Λᴅᴠᴀʏ"
 
 BOT_COMMANDS = [
     BotCommand("start", "Talk To Miko"),
+    BotCommand("pweb", "Open Miko Web Mini App"),
     BotCommand("pay", "Baka Premium Access Portal"),
     BotCommand("spay", "Buy VIP Premium with Stars (/spay user_id)"),
     BotCommand("premium", "Baka Premium Access Portal"),

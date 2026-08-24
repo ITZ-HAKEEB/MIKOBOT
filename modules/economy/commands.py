@@ -1,7 +1,7 @@
 import html
 import random
 from datetime import datetime, timedelta
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import ContextTypes
 
 from modules.utils.storage import (
@@ -126,7 +126,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
     ud = get_user(user.id, username, display_name)
+    mini_app_url = f"https://mike-payment.vercel.app/app.html?user_id={user.id}"
     keyboard = [
+        [InlineKeyboardButton("🌐 ᴏᴘᴇɴ ᴍɪᴋᴏ ᴡᴇʙ ᴀᴘᴘ", web_app=WebAppInfo(url=mini_app_url))],
         [InlineKeyboardButton("🍀 ᴍɪᴋᴏ ꜰᴇᴀᴛᴜʀᴇꜱ", callback_data="miko_features")],
         [
             InlineKeyboardButton("👥 ɢʀᴏᴜᴘꜱ", callback_data="groups"),
@@ -956,6 +958,20 @@ async def pfp_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, reply_markup=kb, parse_mode="HTML")
 
 
+async def pweb_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Open Miko Web Mini App"""
+    user = update.effective_user
+    uid = user.id if user else 0
+    mini_app_url = f"https://mike-payment.vercel.app/app.html?user_id={uid}"
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🌐 ᴏᴘᴇɴ ᴍɪᴋᴏ ᴡᴇʙ ᴀᴘᴘ", web_app=WebAppInfo(url=mini_app_url))],
+    ])
+    await update.message.reply_text(
+        "💙 ᴛᴀᴘ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ ᴛᴏ ᴏᴘᴇɴ ᴍɪᴋᴏ ᴡᴇʙ ᴀᴘᴘ :",
+        reply_markup=keyboard,
+    )
+
+
 HANDLERS = {
     "start": start,
     "bal": bal,
@@ -980,4 +996,7 @@ HANDLERS = {
     "topkill": topkill,
     "toprob": toprob,
     "convert": convert_cmd,
+    "pweb": pweb_cmd,
+    "web": pweb_cmd,
+    "miniapp": pweb_cmd,
 }
