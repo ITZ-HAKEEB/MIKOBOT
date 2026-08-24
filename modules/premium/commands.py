@@ -104,40 +104,6 @@ async def mypowers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("\n".join(lines), parse_mode="HTML")
 
 
-async def pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_chat and update.effective_chat.type != "private":
-        await update.message.reply_text("⚠️ Tʜɪꜱ Cᴏᴍᴍᴀɴᴅ Oɴʟʏ Wᴏʀᴋꜱ Iɴ Tʜᴇ ᴍɪᴋᴏ Bᴏᴛ'ꜱ Dᴍ.")
-        return
-
-    text = (
-        "<b>ᴍɪᴋᴏ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇꜱꜱ</b>\n\n"
-        "ɪᴍᴘᴏʀᴛᴀɴᴛ ɴᴏᴛᴇ: ɪꜰ ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴀɴ ɪɴᴅɪᴀɴ ᴜꜱᴇʀ ᴀɴᴅ ᴜɴʙᴀʟᴇ ᴛᴏ ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ ꜰʀᴏᴍ ᴛʜᴇ ꜱɪᴛᴇ ᴛʜᴇɴ ʏᴏᴜ ᴄᴀɴ ʙᴜʏ ʙᴀᴋᴀ ᴘʀᴇᴍɪᴜᴍ ᴜꜱɪɴɢ ᴛᴇʟᴇɢʀᴀᴍ ꜱᴛᴀʀꜱ ᴜꜱɪɴɢ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ : /fpay\n\n"
-        "ɪꜰ ʏᴏᴜ ᴀʀᴇ ꜰʀᴏᴍ ɪɴᴅɪᴀ ᴛʜᴇɴ ʏᴏᴜ ᴄᴀɴ ʙᴜʏ ʙᴀᴋᴀ ᴘʀᴇᴍɪᴜᴍ ꜱɪᴍᴘʟʏ ꜰʀᴏᴍ ᴛʜᴇ ʙᴇʟᴏᴡ ᴘᴀʏ ɴᴏᴡ ʙᴜᴛᴛᴏɴ\n"
-        "ᴄʜᴇᴄᴋ ʏᴏᴜʀ ᴛᴇʟᴇɢʀᴀᴍ ɪᴅ : /id\n\n"
-        "ʏᴏᴜ ᴄᴀɴ ʀᴇᴘᴏʀᴛ ᴀɴʏ ɪꜱꜱᴜᴇ ᴛʜʀᴏᴜɢʜ ᴛʜᴇ ᴅᴍ ᴏꜰ ᴛʜɪꜱ ᴄʜᴀɴɴᴇʟ : @Developer_World_Advay"
-    )
-
-    user = update.effective_user
-    uid = user.id if user else 0
-
-    keyboard = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("💳 PAY NOW", web_app=WebAppInfo(url=f"https://mike-payment.vercel.app/checkout.html?user_id={uid}")),
-            InlineKeyboardButton("💰 ADD FUNDS", web_app=WebAppInfo(url=f"https://mike-payment.vercel.app/checkout.html?plan=1_month&user_id={uid}")),
-        ],
-        [
-            InlineKeyboardButton("💓 FEATURES", url="https://t.me/i_mikoo/11"),
-            InlineKeyboardButton("📜 TERMS AND REFUND", web_app=WebAppInfo(url="https://mike-payment.vercel.app/refund.html")),
-        ],
-    ])
-
-    await update.message.reply_text(
-        text,
-        reply_markup=keyboard,
-        parse_mode="HTML",
-        disable_web_page_preview=True,
-    )
-
 STARS_PLANS = {
     "stars_1_month": {"title": "1 Month VIP Premium", "stars": 10, "gems": 1.0, "months": 1},
     "stars_2_months": {"title": "2 Months VIP Premium", "stars": 15, "gems": 2.0, "months": 2},
@@ -147,24 +113,25 @@ STARS_PLANS = {
 }
 
 
-async def fpay(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Direct 1-tap Telegram Stars payment invoice: /pay <user_id> [months]"""
     if update.effective_chat and update.effective_chat.type != "private":
         await update.message.reply_text("⚠️ Tʜɪꜱ Cᴏᴍᴍᴀɴᴅ Oɴʟʏ Wᴏʀᴋꜱ Iɴ Tʜᴇ ᴍɪᴋᴏ Bᴏᴛ'ꜱ Dᴍ.")
         return
 
     if not context.args:
-        await update.message.reply_text("⚠️ <b>Usage :</b> <code>/fpay user_id</code>", parse_mode="HTML")
+        await update.message.reply_text("⚠️ <b>Usage :</b> <code>/pay user_id</code>", parse_mode="HTML")
         return
 
     target_id_str = context.args[0].strip()
     if not target_id_str.isdigit():
-        await update.message.reply_text("⚠️ <b>Usage :</b> <code>/fpay user_id</code>", parse_mode="HTML")
+        await update.message.reply_text("⚠️ <b>Usage :</b> <code>/pay user_id</code>", parse_mode="HTML")
         return
 
     target_uid = int(target_id_str)
     chat_id = update.effective_chat.id
 
-    # Support optional month parameter: /fpay <user_id> [1|2|3|6|12]
+    # Support optional month parameter: /pay <user_id> [1|2|3|6|12]
     months = 1
     if len(context.args) > 1 and context.args[1].isdigit():
         req_m = int(context.args[1])
@@ -194,6 +161,11 @@ async def fpay(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         print(f"Error sending Stars invoice: {e}")
         await update.message.reply_text(f"⚠️ Could not open Stars checkout invoice: {e}")
+
+
+async def fpay(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Alias to pay command for backward compatibility"""
+    await pay(update, context)
 
 
 async def send_stars_invoice(query, context, callback_data: str):
