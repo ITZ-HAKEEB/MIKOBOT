@@ -959,13 +959,22 @@ async def pfp_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def pweb_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Open Miko Web Mini App"""
+    """Open Miko Web Mini App — WebApp button in DM, URL button in groups"""
     user = update.effective_user
     uid = user.id if user else 0
+    chat = update.effective_chat
     mini_app_url = f"https://mike-payment.vercel.app/app.html?user_id={uid}"
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🌐 ᴏᴘᴇɴ ᴍɪᴋᴏ ᴡᴇʙ ᴀᴘᴘ", web_app=WebAppInfo(url=mini_app_url))],
-    ])
+
+    # Telegram only supports WebAppInfo buttons in private chats
+    if chat and chat.type == "private":
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🌐 ᴏᴘᴇɴ ᴍɪᴋᴏ ᴡᴇʙ ᴀᴘᴘ", web_app=WebAppInfo(url=mini_app_url))],
+        ])
+    else:
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🌐 ᴏᴘᴇɴ ᴍɪᴋᴏ ᴡᴇʙ ᴀᴘᴘ", url=mini_app_url)],
+        ])
+
     await update.message.reply_text(
         "💙 ᴛᴀᴘ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ ᴛᴏ ᴏᴘᴇɴ ᴍɪᴋᴏ ᴡᴇʙ ᴀᴘᴘ :",
         reply_markup=keyboard,
