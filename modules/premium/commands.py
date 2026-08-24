@@ -123,7 +123,7 @@ async def pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("💳 PAY NOW", web_app=WebAppInfo(url=f"https://mike-payment.vercel.app/checkout.html?user_id={uid}")),
-            InlineKeyboardButton("📲 DIRECT UPI / QR", url="https://razorpay.me/@nishkarshkumar"),
+            InlineKeyboardButton("💰 ADD FUNDS", web_app=WebAppInfo(url=f"https://mike-payment.vercel.app/checkout.html?plan=1_month&user_id={uid}")),
         ],
         [
             InlineKeyboardButton("💓 FEATURES", url="https://t.me/i_mikoo/11"),
