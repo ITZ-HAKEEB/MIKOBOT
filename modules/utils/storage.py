@@ -32,6 +32,7 @@ DEFAULT_USER = {
     "prem_wallet": 0.0,
     "past_names": [],
     "past_usernames": [],
+    "home_group": None,
 }
 
 POWERS_CATALOG: Dict[str, Dict[str, Any]] = {

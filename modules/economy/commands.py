@@ -705,30 +705,45 @@ def render_toprich_message(chat_id: int, mode: str = "global"):
     g_info = get_group(chat_id) if chat_id else {}
     g_members = set(g_info.get("members", []))
 
-    if mode == "group" and g_members:
-        filtered = {k: v for k, v in data.items() if int(k) in g_members}
-        if not filtered:
+    if mode == "group" and chat_id:
+        # Top 5: only users who set this group as their home_group
+        home_members = {k: v for k, v in data.items() if v.get("home_group") == chat_id}
+        if home_members:
+            filtered = home_members
+            title = "🏆 <b>Gʀᴏᴜᴘ Tᴏᴘ 5 Rɪᴄʜᴇꜱᴛ:</b>"
+            top_n = 5
+        elif g_members:
+            filtered = {k: v for k, v in data.items() if int(k) in g_members}
+            title = "🏆 <b>Gʀᴏᴜᴘ Tᴏᴘ 5 Rɪᴄʜᴇꜱᴛ:</b>"
+            top_n = 5
+        else:
             filtered = data
-        title = "🏆 <b>Gʀᴏᴜᴘ Tᴏᴘ 10 Rɪᴄʜᴇꜱᴛ:</b>"
+            title = "🏆 <b>Gʟᴏʙᴀʟ Tᴏᴘ 10 Rɪᴄʜᴇꜱᴛ:</b>"
+            top_n = 10
         btn = InlineKeyboardButton("🌍 Global Top 10", callback_data=f"toprich_global_{chat_id}")
     else:
         filtered = data
         title = "🏆 <b>Gʟᴏʙᴀʟ Tᴏᴘ 10 Rɪᴄʜᴇꜱᴛ:</b>"
-        btn = InlineKeyboardButton("👥 Group Top 10", callback_data=f"toprich_group_{chat_id}")
+        top_n = 10
+        btn = InlineKeyboardButton("👥 Group Top 5", callback_data=f"toprich_group_{chat_id}")
 
-    ranked = sorted(filtered.items(), key=lambda x: x[1].get("balance", 0), reverse=True)[:10]
+    ranked = sorted(filtered.items(), key=lambda x: x[1].get("balance", 0), reverse=True)[:top_n]
 
+    medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
     lines = [title, ""]
-    for uid, info in ranked:
+    for i, (uid, info) in enumerate(ranked):
         name = info.get("display_name") or info.get("first_name") or info.get("username") or f"User {uid}"
         icon = "💓" if info.get("premium") else "👤"
         mention = f'<a href="tg://user?id={uid}">{html.escape(name)}</a>'
         bal = info.get("balance", 0)
-        lines.append(f"{icon} {mention}: ${bal}")
+        medal = medals[i] if i < len(medals) else f"{i+1}."
+        lines.append(f"{medal} {icon} {mention}: ${bal}")
 
     lines.append("")
     lines.append("💓 = Pʀᴇᴍɪᴜᴍ • 👤 = Nᴏʀᴍᴀʟ")
     lines.append("✅ Uᴘɢʀᴀᴅᴇ Tᴏ Pʀᴇᴍɪᴜᴍ : /pay")
+    if mode == "group":
+        lines.append("📍 Sᴇᴛ ʏᴏᴜʀ ʜᴏᴍᴇ ɢʀᴏᴜᴘ : /setgroup")
 
     text = "\n".join(lines)
     keyboard = InlineKeyboardMarkup([[btn]])
@@ -958,6 +973,55 @@ async def pfp_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, reply_markup=kb, parse_mode="HTML")
 
 
+async def setgroup_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Register this group as the user's home group for the Top 5 leaderboard. 1 group per user."""
+    chat = update.effective_chat
+    user = update.effective_user
+
+    if not chat or chat.type == "private":
+        await update.message.reply_text("⚠️ Uꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ ɪɴ ᴀ ɢʀᴏᴜᴘ ᴛᴏ ꜱᴇᴛ ɪᴛ ᴀꜱ ʏᴏᴜʀ ʜᴏᴍᴇ ɢʀᴏᴜᴘ.")
+        return
+
+    ud = get_user(user.id, user.username or user.first_name or "User", user.first_name)
+    current_home = ud.get("home_group")
+
+    if current_home and current_home == chat.id:
+        await update.message.reply_text(
+            f"✅ Tʜɪꜱ ɪꜱ ᴀʟʀᴇᴀᴅʏ ʏᴏᴜʀ ʜᴏᴍᴇ ɢʀᴏᴜᴘ!\n"
+            f"📍 Yᴏᴜ ᴀᴘᴘᴇᴀʀ ɪɴ ᴛʜɪꜱ ɢʀᴏᴜᴘ'ꜱ Tᴏᴘ 5 ʀɪᴄʜ ʟɪꜱᴛ."
+        )
+        return
+
+    if current_home and current_home != chat.id:
+        await update.message.reply_text(
+            f"⚠️ Yᴏᴜ ᴀʟʀᴇᴀᴅʏ ʜᴀᴠᴇ ᴀ ʜᴏᴍᴇ ɢʀᴏᴜᴘ ꜱᴇᴛ!\n"
+            f"💡 Eᴀᴄʜ ᴜꜱᴇʀ ᴄᴀɴ ᴏɴʟʏ ꜱᴇᴛ <b>1 ɢʀᴏᴜᴘ</b>.\n"
+            f"Uꜱᴇ /resetgroup ᴛᴏ ᴄʟᴇᴀʀ ʏᴏᴜʀ ᴄᴜʀʀᴇɴᴛ ʜᴏᴍᴇ ɢʀᴏᴜᴘ ꜰɪʀꜱᴛ.",
+            parse_mode="HTML"
+        )
+        return
+
+    update_user(user.id, home_group=chat.id)
+    g_name = html.escape(chat.title or "this group")
+    await update.message.reply_text(
+        f"✅ <b>{g_name}</b> ɪꜱ ɴᴏᴡ ʏᴏᴜʀ ʜᴏᴍᴇ ɢʀᴏᴜᴘ!\n"
+        f"📊 Yᴏᴜ ᴡɪʟʟ ɴᴏᴡ ᴀᴘᴘᴇᴀʀ ɪɴ ᴛʜɪꜱ ɢʀᴏᴜᴘ'ꜱ <b>Tᴏᴘ 5</b> ʀɪᴄʜ ʟɪꜱᴛ.\n"
+        f"💡 Yᴏᴜ ᴄᴀɴ ᴏɴʟʏ ʜᴀᴠᴇ <b>1 ʜᴏᴍᴇ ɢʀᴏᴜᴘ</b>. Uꜱᴇ /resetgroup ᴛᴏ ᴄʜᴀɴɢᴇ ɪᴛ.",
+        parse_mode="HTML"
+    )
+
+
+async def resetgroup_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Clear the user's home group so they can set a new one."""
+    user = update.effective_user
+    ud = get_user(user.id, user.username or user.first_name or "User", user.first_name)
+    if not ud.get("home_group"):
+        await update.message.reply_text("ℹ️ Yᴏᴜ ʜᴀᴠᴇɴ'ᴛ ꜱᴇᴛ ᴀ ʜᴏᴍᴇ ɢʀᴏᴜᴘ ʏᴇᴛ. Uꜱᴇ /setgroup ɪɴ ᴀ ɢʀᴏᴜᴘ.")
+        return
+    update_user(user.id, home_group=None)
+    await update.message.reply_text("✅ Yᴏᴜʀ ʜᴏᴍᴇ ɢʀᴏᴜᴘ ʜᴀꜱ ʙᴇᴇɴ ᴄʟᴇᴀʀᴇᴅ. Uꜱᴇ /setgroup ɪɴ ᴀɴʏ ɢʀᴏᴜᴘ ᴛᴏ ꜱᴇᴛ ᴀ ɴᴇᴡ ᴏɴᴇ.")
+
+
 HANDLERS = {
     "start": start,
     "bal": bal,
@@ -982,4 +1046,6 @@ HANDLERS = {
     "topkill": topkill,
     "toprob": toprob,
     "convert": convert_cmd,
+    "setgroup": setgroup_cmd,
+    "resetgroup": resetgroup_cmd,
 }
