@@ -236,6 +236,88 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await whisper_callback_handler(update, context)
         return
 
+    if data.startswith("fund_acc:") or data.startswith("fund_rej:"):
+        caller = query.from_user
+        from modules.utils.db import is_sudo_user
+        import html as html_lib
+        if not caller or not is_sudo_user(caller.id):
+            await query.answer("🚫 Only Bot Owner / Sudoers can approve or reject fund requests!", show_alert=True)
+            return
+
+        is_accept = data.startswith("fund_acc:")
+        parts = data.split(":")
+        try:
+            target_uid = int(parts[1])
+            amount = float(parts[2])
+            req_id = parts[3] if len(parts) > 3 else "N/A"
+        except Exception:
+            await query.answer("❌ Error parsing request data.", show_alert=True)
+            return
+
+        admin_name = caller.first_name or caller.username or f"Admin {caller.id}"
+        target_ud = get_user(target_uid)
+        user_name = target_ud.get("display_name") or target_ud.get("username") or f"User {target_uid}"
+
+        if is_accept:
+            new_wallet = round(float(target_ud.get("prem_wallet", 0.0) or 0.0) + amount, 2)
+            update_user(target_uid, prem_wallet=new_wallet)
+
+            new_log_text = (
+                f"💳 <b>[ADD FUND - APPROVED ✅]</b>\n\n"
+                f"👤 <b>User:</b> <a href=\"tg://user?id={target_uid}\">{html_lib.escape(user_name)}</a>\n"
+                f"🆔 <b>Telegram ID:</b> <code>{target_uid}</code>\n"
+                f"💵 <b>Amount Credited:</b> <b>₹{amount:,.2f} INR</b>\n"
+                f"💼 <b>Updated Wallet Balance:</b> <b>₹{new_wallet:,.2f}</b>\n"
+                f"🔑 <b>Request ID:</b> <code>REQ-{req_id}</code>\n"
+                f"👮‍♂️ <b>Approved By:</b> <a href=\"tg://user?id={caller.id}\">{html_lib.escape(admin_name)}</a>\n"
+                f"⏰ <b>Status:</b> <b>Credited Successfully</b>"
+            )
+            try:
+                await query.edit_message_text(text=new_log_text, parse_mode="HTML")
+            except Exception:
+                pass
+
+            await query.answer(f"✅ Approved! ₹{amount:g} credited to User {target_uid}", show_alert=True)
+
+            try:
+                user_notify = (
+                    f"🎉 <b>Fund Deposit Approved!</b>\n\n"
+                    f"💳 <b>Amount Credited:</b> <b>₹{amount:,.2f} INR</b>\n"
+                    f"💼 <b>Premium Wallet Balance:</b> <b>₹{new_wallet:,.2f}</b>\n"
+                    f"👮‍♂️ <b>Approved By:</b> Admin ({html_lib.escape(admin_name)})\n\n"
+                    f"✨ You can now open the Mini App to activate your VIP Premium plan!"
+                )
+                await context.bot.send_message(chat_id=target_uid, text=user_notify, parse_mode="HTML")
+            except Exception as e:
+                print(f"Could not DM user {target_uid}: {e}")
+        else:
+            new_log_text = (
+                f"💳 <b>[ADD FUND - REJECTED ❌]</b>\n\n"
+                f"👤 <b>User:</b> <a href=\"tg://user?id={target_uid}\">{html_lib.escape(user_name)}</a>\n"
+                f"🆔 <b>Telegram ID:</b> <code>{target_uid}</code>\n"
+                f"💵 <b>Amount:</b> <b>₹{amount:,.2f} INR</b>\n"
+                f"🔑 <b>Request ID:</b> <code>REQ-{req_id}</code>\n"
+                f"👮‍♂️ <b>Rejected By:</b> <a href=\"tg://user?id={caller.id}\">{html_lib.escape(admin_name)}</a>\n"
+                f"⏰ <b>Status:</b> <b>Request Rejected</b>"
+            )
+            try:
+                await query.edit_message_text(text=new_log_text, parse_mode="HTML")
+            except Exception:
+                pass
+
+            await query.answer(f"❌ Fund request REJECTED for User {target_uid}", show_alert=True)
+
+            try:
+                user_notify = (
+                    f"❌ <b>Fund Deposit Request Rejected</b>\n\n"
+                    f"⚠️ Your deposit request of <b>₹{amount:,.2f} INR</b> was rejected by Admin.\n"
+                    f"If you already completed the payment, please contact @advaydev with proof."
+                )
+                await context.bot.send_message(chat_id=target_uid, text=user_notify, parse_mode="HTML")
+            except Exception:
+                pass
+        return
+
     await query.answer()
 
     if data.startswith("gleader_"):

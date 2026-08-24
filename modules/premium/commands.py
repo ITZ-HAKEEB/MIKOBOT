@@ -531,6 +531,59 @@ async def coupon_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def deposit_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """User command: /deposit <amount> or /topup <amount> to submit a fund top-up request."""
+    user = update.effective_user
+    if not user:
+        return
+
+    args = context.args or []
+    if not args:
+        msg = (
+            "💳 <b>Hᴏᴡ ᴛᴏ Aᴅᴅ Fᴜɴᴅꜱ ᴛᴏ Yᴏᴜʀ Pʀᴇᴍɪᴜᴍ Wᴀʟʟᴇᴛ:</b>\n\n"
+            "1️⃣ <b>Pay via Razorpay:</b> <a href=\"https://razorpay.me/@nishkarshkumar\">razorpay.me/@nishkarshkumar</a>\n"
+            "2️⃣ <b>Submit Verification:</b> <code>/deposit &lt;amount_in_inr&gt;</code>\n\n"
+            "<i>Example:</i> <code>/deposit 50</code>\n\n"
+            "⚡ <i>Admins will verify and approve your funds with 1 tap in the Log Group!</i>"
+        )
+        await update.message.reply_text(msg, parse_mode="HTML", disable_web_page_preview=True)
+        return
+
+    try:
+        amount = float(args[0])
+    except ValueError:
+        await update.message.reply_text("❌ Please enter a valid number for amount. Example: <code>/deposit 50</code>", parse_mode="HTML")
+        return
+
+    if amount < 10:
+        await update.message.reply_text("❌ Minimum deposit amount is ₹10 INR.")
+        return
+
+    import time
+    req_id = str(int(time.time()))[-6:]
+    name = user.first_name or user.username or f"User {user.id}"
+
+    from modules.utils.logger import send_fund_approval_log
+    await send_fund_approval_log(
+        bot=context.bot,
+        user_id=user.id,
+        user_name=name,
+        amount=amount,
+        req_id=req_id,
+        method="Razorpay.me / UPI",
+        notes=f"Submitted via /deposit by @{user.username}" if user.username else "Submitted via /deposit"
+    )
+
+    confirm_msg = (
+        f"💳 <b>Aᴅᴅ Fᴜɴᴅ RᴇQᴜᴇꜱᴛ Sᴜʙᴍɪᴛᴛᴇᴅ!</b>\n\n"
+        f"💵 <b>Amount:</b> <b>₹{amount:,.2f} INR</b>\n"
+        f"🔑 <b>Request ID:</b> <code>REQ-{req_id}</code>\n"
+        f"🔗 <b>Gateway Portal:</b> <a href=\"https://razorpay.me/@nishkarshkumar\">razorpay.me/@nishkarshkumar</a>\n\n"
+        f"⏳ <i>An approval request with Accept/Reject buttons has been sent to our Log Group. Your balance will be credited as soon as an Admin approves it!</i>"
+    )
+    await update.message.reply_text(confirm_msg, parse_mode="HTML", disable_web_page_preview=True)
+
+
 premium = pay
 
 HANDLERS = {
@@ -545,6 +598,8 @@ HANDLERS = {
     "premium": pay,
     "prem": pay,
     "fpay": fpay,
+    "deposit": deposit_cmd,
+    "topup": deposit_cmd,
     "claim": claim,
     "coupons": coupons,
     "create_coupon": create_coupon,

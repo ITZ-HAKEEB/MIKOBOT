@@ -335,6 +335,56 @@ async def handle_config(request: web.Request) -> web.Response:
     })
 
 
+async def handle_request_fund(request: web.Request) -> web.Response:
+    """POST /api/request-fund - Submit a fund deposit request for Admin Approval in Log Group"""
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"success": False, "error": "Invalid JSON"}, status=400)
+
+    uid = int(data.get("user_id", 0))
+    try:
+        amount = float(data.get("amount", 0))
+    except (ValueError, TypeError):
+        amount = 0.0
+
+    notes = data.get("notes", "")
+
+    if not uid or amount <= 0:
+        return web.json_response({"success": False, "error": "Invalid user_id or amount"}, status=400)
+
+    ud = get_user(uid)
+    name = ud.get("display_name") or ud.get("username") or f"User {uid}"
+
+    import time
+    req_id = str(int(time.time()))[-6:]
+
+    from modules.utils.logger import send_fund_approval_log
+    from main import app as telegram_app
+
+    if telegram_app and telegram_app.bot:
+        try:
+            await send_fund_approval_log(
+                bot=telegram_app.bot,
+                user_id=uid,
+                user_name=name,
+                amount=amount,
+                req_id=req_id,
+                method="Razorpay.me / WebApp",
+                notes=notes
+            )
+        except Exception as e:
+            print(f"Error sending fund approval log: {e}")
+
+    return web.json_response({
+        "success": True,
+        "message": f"Fund request for ₹{amount:,.2f} INR sent to Admins for approval.",
+        "request_id": f"REQ-{req_id}",
+        "user_id": uid,
+        "amount": amount
+    })
+
+
 def create_payment_app() -> web.Application:
     app = web.Application()
     async def cors_middleware(app, handler):
@@ -360,6 +410,7 @@ def create_payment_app() -> web.Application:
     app.router.add_post("/api/verify-payment", handle_verify_payment)
     app.router.add_post("/api/razorpay-webhook", handle_razorpay_webhook)
     app.router.add_post("/api/purchase-premium-wallet", handle_purchase_premium_wallet)
+    app.router.add_post("/api/request-fund", handle_request_fund)
     app.router.add_get("/api/user-profile", handle_user_profile)
     app.router.add_get("/api/leaderboards", handle_leaderboards)
     app.router.add_get("/api/config", handle_config)
