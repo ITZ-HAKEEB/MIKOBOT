@@ -900,12 +900,59 @@ async def task_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text, parse_mode="HTML")
 
 
+async def pfp_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not (await _econ_gate(update)):
+        return
+    user = update.effective_user
+    target_id = user.id
+    target_name = user.first_name or user.username or "User"
+    if update.message.reply_to_message and update.message.reply_to_message.from_user:
+        t = update.message.reply_to_message.from_user
+        target_id = t.id
+        target_name = t.first_name or t.username or "User"
+    elif context.args and context.args[0].isdigit():
+        target_id = int(context.args[0])
+
+    ud = get_user(target_id)
+    name = ud.get("display_name") or target_name
+    br = global_rank(target_id, "balance")
+    kr = global_rank(target_id, "kills")
+
+    vip_badge = "👑 VIP Premium" if ud.get("premium") else "👤 Free Tier"
+    shield_status = "🛡️ Protected" if ud.get("protected") else ("💀 Dead" if ud.get("status") == "dead" else "🟢 Alive")
+
+    msg = (
+        f"👤 <b>{html.escape(name)} ࿐'ꜱ Pʀᴏꜰɪʟᴇ</b>\n\n"
+        f"👑 <b>Status:</b> {vip_badge}\n"
+        f"🆔 <b>ID:</b> <code>{target_id}</code>\n"
+        f"🟤 <b>Level:</b> {ud.get('level', 1)} ({ud.get('xp', 0)}/{ud.get('xp_max', 1000)} XP)\n\n"
+        f"💵 <b>Cash:</b> ${ud.get('balance', 0):,}\n"
+        f"🏦 <b>Vault:</b> ${ud.get('wallet_balance', 0):,}\n"
+        f"💎 <b>Gems:</b> {ud.get('gems', 0.0):.2f}\n\n"
+        f"⚔️ <b>Kills:</b> {ud.get('kills', 0)} (Rank #{kr})\n"
+        f"🥷 <b>Robberies:</b> {ud.get('robs', 0)}\n"
+        f"🏆 <b>Rich Rank:</b> #{br}\n"
+        f"🛡️ <b>Shield:</b> {shield_status}"
+    )
+
+    from telegram import WebAppInfo
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📱 OPEN MINI APP PROFILE", web_app=WebAppInfo(url=f"https://mike-payment.vercel.app/app.html?user_id={target_id}"))],
+        [InlineKeyboardButton("🏆 LIVE LEADERBOARDS", web_app=WebAppInfo(url="https://mike-payment.vercel.app/app.html?tab=leaderboards"))],
+    ])
+    await update.message.reply_text(msg, reply_markup=kb, parse_mode="HTML")
+
+
 HANDLERS = {
     "start": start,
     "bal": bal,
     "gems": gems,
     "fgems": fgems,
     "id": cmd_id,
+    "pfp": pfp_cmd,
+    "profile": pfp_cmd,
+    "me": pfp_cmd,
+    "stats": pfp_cmd,
     "daily": daily,
     "task": task_cmd,
     "tasks": task_cmd,

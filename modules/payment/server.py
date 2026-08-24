@@ -162,6 +162,118 @@ async def handle_razorpay_webhook(request: web.Request) -> web.Response:
     return web.json_response({"status": "ok"})
 
 
+async def handle_user_profile(request: web.Request) -> web.Response:
+    """GET /api/user-profile?user_id=123456789"""
+    uid_str = request.query.get("user_id", "").strip()
+    if not uid_str or not uid_str.isdigit():
+        return web.json_response({"error": "Invalid or missing user_id parameter"}, status=400)
+
+    uid = int(uid_str)
+    all_users = get_all_users()
+    ud = get_user(uid)
+
+    # Calculate global ranking positions
+    sorted_rich = sorted(all_users.items(), key=lambda x: x[1].get("balance", 0) + x[1].get("wallet_balance", 0), reverse=True)
+    sorted_kills = sorted(all_users.items(), key=lambda x: x[1].get("kills", 0), reverse=True)
+    sorted_robs = sorted(all_users.items(), key=lambda x: x[1].get("robs", 0), reverse=True)
+    sorted_bombs = sorted(all_users.items(), key=lambda x: x[1].get("bomb_wins", 0), reverse=True)
+
+    def find_rank(sorted_list, target_uid):
+        for idx, (k, _) in enumerate(sorted_list, 1):
+            if int(k) == target_uid:
+                return idx
+        return len(sorted_list)
+
+    rank_rich = find_rank(sorted_rich, uid)
+    rank_kills = find_rank(sorted_kills, uid)
+    rank_robs = find_rank(sorted_robs, uid)
+    rank_bombs = find_rank(sorted_bombs, uid)
+
+    import time
+    is_protected = bool(ud.get("protected", False))
+    protected_until = ud.get("protected_until") or 0
+    rem_protect = max(0, int(protected_until - time.time())) if is_protected else 0
+
+    xp = ud.get("xp", 0)
+    xp_max = ud.get("xp_max", 1000) or 1000
+    xp_percent = min(100, int((xp / xp_max) * 100))
+
+    response_data = {
+        "user_id": uid,
+        "username": ud.get("username") or "User",
+        "display_name": ud.get("display_name") or ud.get("username") or f"User {uid}",
+        "custom_emoji": ud.get("emoji") or "",
+        "bio": ud.get("intro_text") or "No custom intro set yet.",
+        "status": ud.get("status", "alive"),
+        "premium": bool(ud.get("premium", False)),
+        "level": ud.get("level", 1),
+        "xp": xp,
+        "xp_max": xp_max,
+        "xp_percent": xp_percent,
+        "balances": {
+            "cash": ud.get("balance", 0),
+            "bank": ud.get("wallet_balance", 0),
+            "net_worth": ud.get("balance", 0) + ud.get("wallet_balance", 0),
+            "gems": ud.get("gems", 0.0),
+        },
+        "stats": {
+            "kills": ud.get("kills", 0),
+            "daily_kills": ud.get("daily_kills", 0),
+            "robs": ud.get("robs", 0),
+            "daily_robs": ud.get("daily_robs", 0),
+            "bomb_wins": ud.get("bomb_wins", 0),
+            "protected": is_protected and rem_protect > 0,
+            "protection_remaining_seconds": rem_protect,
+        },
+        "rankings": {
+            "rich_rank": rank_rich,
+            "kills_rank": rank_kills,
+            "robs_rank": rank_robs,
+            "bombs_rank": rank_bombs,
+            "total_players": len(all_users),
+        },
+        "powers": ud.get("powers", []),
+        "friends_count": len(ud.get("friends", {})),
+    }
+
+    return web.json_response(response_data)
+
+
+async def handle_leaderboards(request: web.Request) -> web.Response:
+    """GET /api/leaderboards"""
+    all_users = get_all_users()
+
+    def format_top(sorted_list, key_name, extra_key=None):
+        out = []
+        for idx, (uid, info) in enumerate(sorted_list[:20], 1):
+            val = info.get(key_name, 0)
+            if extra_key:
+                val += info.get(extra_key, 0)
+            out.append({
+                "rank": idx,
+                "user_id": int(uid),
+                "name": info.get("display_name") or info.get("username") or f"User {uid}",
+                "username": info.get("username") or "",
+                "premium": bool(info.get("premium", False)),
+                "custom_emoji": info.get("emoji") or "",
+                "value": val,
+            })
+        return out
+
+    sorted_rich = sorted(all_users.items(), key=lambda x: x[1].get("balance", 0) + x[1].get("wallet_balance", 0), reverse=True)
+    sorted_kills = sorted(all_users.items(), key=lambda x: x[1].get("kills", 0), reverse=True)
+    sorted_robs = sorted(all_users.items(), key=lambda x: x[1].get("robs", 0), reverse=True)
+    sorted_bombs = sorted(all_users.items(), key=lambda x: x[1].get("bomb_wins", 0), reverse=True)
+
+    return web.json_response({
+        "total_players": len(all_users),
+        "richest": format_top(sorted_rich, "balance", "wallet_balance"),
+        "killers": format_top(sorted_kills, "kills"),
+        "robbers": format_top(sorted_robs, "robs"),
+        "bomb_masters": format_top(sorted_bombs, "bomb_wins"),
+    })
+
+
 async def handle_config(request: web.Request) -> web.Response:
     """GET /api/config"""
     return web.json_response({
@@ -195,5 +307,7 @@ def create_payment_app() -> web.Application:
     app.router.add_post("/api/create-order", handle_create_order)
     app.router.add_post("/api/verify-payment", handle_verify_payment)
     app.router.add_post("/api/razorpay-webhook", handle_razorpay_webhook)
+    app.router.add_get("/api/user-profile", handle_user_profile)
+    app.router.add_get("/api/leaderboards", handle_leaderboards)
     app.router.add_get("/api/config", handle_config)
     return app
