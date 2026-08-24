@@ -5,6 +5,7 @@ ADVAY_NAME = "Λᴅᴠᴀʏ"
 BOT_COMMANDS = [
     BotCommand("start", "Talk To Miko"),
     BotCommand("pay", "Buy Miko VIP Premium (/pay user_id)"),
+    BotCommand("premium", "Buy Miko VIP Premium (/premium user_id)"),
     BotCommand("addprem", "Owner: Grant VIP Premium (/addprem user_id)"),
     BotCommand("gems", "Check Your Gems"),
     BotCommand("fgems", "Buy Gems With Telegram Stars"),

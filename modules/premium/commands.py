@@ -531,6 +531,8 @@ async def coupon_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+premium = pay
+
 HANDLERS = {
     "ph": ph,
     "powers": powers_list,
@@ -540,6 +542,8 @@ HANDLERS = {
     "mypowers": mypowers,
     "mp": mypowers,
     "pay": pay,
+    "premium": pay,
+    "prem": pay,
     "fpay": fpay,
     "claim": claim,
     "coupons": coupons,
