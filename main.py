@@ -455,8 +455,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if data == "back_start":
         user = query.from_user
+        uid = user.id
         ud = get_user(user.id, user.username or "User", user.first_name or "User")
-        from modules.utils.commands_list import ADVAY_NAME
         toprich_rank = global_rank(user.id, "balance")
         stats_block = (
             "<blockquote>"
@@ -467,8 +467,9 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"<b>🔪 ᴋɪʟʟꜱ:</b> {ud['kills']}"
             "</blockquote>"
         )
+        user_mention = f'<a href="tg://user?id={uid}">{user.first_name or user.username or "User"}</a>'
         text = (
-            f"💙 ʜɪᴇᴇᴇᴇᴇᴇᴇ  ⎯꯭‌❃⃪꯭‌ {ADVAY_NAME} ࿐ ɪ'ᴍ ᴍɪᴋᴏ - ᴀ ɢᴀᴍɪɴɢ ᴀɴᴅ ᴄʜᴀᴛᴛɪɴɢ ɢɪʀʟ ʜᴀᴠɪɴɢ ʟᴏᴛꜱ ᴏꜰ ꜰᴇᴀᴛᴜʀᴇꜱ ᴛᴏ ᴇɴɢᴀɢᴇ ʏᴏᴜʀ ɢʀᴏᴜᴘ.\n"
+            f"💙 ʜɪᴇᴇᴇᴇᴇᴇᴇ {user_mention} ɪ'ᴍ ᴍɪᴋᴏ - ᴀ ɢᴀᴍɪɴɢ ᴀɴᴅ ᴄʜᴀᴛᴛɪɴɢ ɢɪʀʟ ʜᴀᴠɪɴɢ ʟᴏᴛꜱ ᴏꜰ ꜰᴇᴀᴛᴜʀᴇꜱ ᴛᴏ ᴇɴɢᴀɢᴇ ʏᴏᴜʀ ɢʀᴏᴜᴘ.\n"
             f"{stats_block}\n"
             f"<b>🕹️ ʜᴏᴡ ᴛᴏ ᴘʟᴀʏ?</b>\n"
             f"💰 /bal - ᴄʜᴇᴄᴋ ʏᴏᴜʀ ꜱᴛᴀᴛꜱ\n"
@@ -478,7 +479,10 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"⚔️ /kill &amp; /rob - ʟᴏᴏᴛ ᴏᴛʜᴇʀꜱ\n\n"
             f"👇 ᴄʜᴏᴏꜱᴇ ᴀɴ ᴏᴘᴛɪᴏɴ ʙᴇʟᴏᴡ :"
         )
+        from telegram import WebAppInfo
+        mini_app_url = f"https://mike-payment.vercel.app/app.html?user_id={uid}"
         keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🌐 ᴏᴘᴇɴ ᴍɪᴋᴏ ᴡᴇʙ ᴀᴘᴘ", web_app=WebAppInfo(url=mini_app_url))],
             [InlineKeyboardButton("🍀 ᴍɪᴋᴏ ꜰᴇᴀᴛᴜʀᴇꜱ", callback_data="miko_features")],
             [
                 InlineKeyboardButton("👥 ɢʀᴏᴜᴘꜱ", callback_data="groups"),
