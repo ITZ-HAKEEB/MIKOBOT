@@ -918,29 +918,8 @@ async def pfp_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     br = global_rank(target_id, "balance")
     kr = global_rank(target_id, "kills")
 
-    import time
-    is_prot = bool(ud.get("protected", False))
-    prot_until = ud.get("protected_until") or 0
-    now_ts = time.time()
-    
-    if is_prot and prot_until > now_ts:
-        diff = int(prot_until - now_ts)
-        ph = diff // 3600
-        pm = (diff % 3600) // 60
-        ps = diff % 60
-        shield_status = f"🛡️ Protected ({ph:02d}h {pm:02d}m {ps:02d}s)"
-        prot_btn_text = f"🛡️ Shield: {ph:02d}h {pm:02d}m {ps:02d}s"
-    elif is_prot:
-        shield_status = "🛡️ Protected (Active)"
-        prot_btn_text = "🛡️ Shield: Active"
-    elif ud.get("status") == "dead":
-        shield_status = "💀 Dead (/revive)"
-        prot_btn_text = "💀 Dead: Send /revive"
-    else:
-        shield_status = "🟢 Alive & Active"
-        prot_btn_text = "🟢 Status: Alive"
-
     vip_badge = "👑 VIP Premium" if ud.get("premium") else "👤 Free Tier"
+    shield_status = "🛡️ Protected" if ud.get("protected") else ("💀 Dead" if ud.get("status") == "dead" else "🟢 Alive")
 
     msg = (
         f"👤 <b>{html.escape(name)} ࿐'ꜱ Pʀᴏꜰɪʟᴇ</b>\n\n"
@@ -958,7 +937,6 @@ async def pfp_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     from telegram import WebAppInfo
     kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton(prot_btn_text, callback_data="shield_info")],
         [InlineKeyboardButton("📱 OPEN MINI APP PROFILE", web_app=WebAppInfo(url=f"https://mike-payment.vercel.app/app.html?user_id={target_id}"))],
         [InlineKeyboardButton("🏆 LIVE LEADERBOARDS", web_app=WebAppInfo(url="https://mike-payment.vercel.app/app.html?tab=leaderboards"))],
     ])
