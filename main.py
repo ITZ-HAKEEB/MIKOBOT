@@ -154,17 +154,28 @@ async def _send_verify_prompt(bot, chat, member):
         [InlineKeyboardButton("🔘 ᴠᴇʀɪꜰʏ ʜᴇʀᴇ ✅", callback_data=f"verify_join:{member.id}")]
     ])
 
-    # 1. Send short stylish welcome message in group with user mention
+    bot_username = getattr(bot, "username", None)
+    if not bot_username:
+        try:
+            bot_username = "i_mikobot"
+        except Exception:
+            pass
+
+    group_kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔘 ᴠᴇʀɪꜰʏ ʜᴇʀᴇ 🛡️", url=f"https://t.me/{bot_username}?start=true")]
+    ])
+
+    # 1. Send stylish welcome message in group with user mention & verify button
     try:
-        await bot.send_message(chat_id=chat.id, text=f"💓 welcome {mention}", parse_mode="HTML")
+        await bot.send_message(chat_id=chat.id, text=f"💓 welcome {mention}", reply_markup=group_kb, parse_mode="HTML")
     except Exception as e:
         print(f"Error sending group welcome in {chat.id}: {e}")
 
-    # 2. Send verification prompt directly to user's PRIVATE DM
+    # 2. Also send verification prompt directly to user's PRIVATE DM
     try:
         await bot.send_message(chat_id=member.id, text=verify_text, reply_markup=verify_kb, parse_mode="HTML")
     except Exception as e:
-        print(f"Error sending private DM to user {member.id}: {e}")
+        pass
 
 
 async def welcome_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
