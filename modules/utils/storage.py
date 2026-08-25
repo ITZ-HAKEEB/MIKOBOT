@@ -35,10 +35,24 @@ DEFAULT_USER = {
     "home_group": None,
     "protected_until": 0,
     "protection_alerts": [],
+    "worn_gift_id": "vice_cream",
     "gifts": [],
 }
 
 GIFTS_CATALOG: Dict[str, Dict[str, Any]] = {
+    "vice_cream": {
+        "name": "Vice Cream",
+        "emoji": "🍦🌲",
+        "rarity": "Legendary",
+        "mint_no": 24972,
+        "model": "Pine Cone",
+        "symbol_name": "Chef Hat",
+        "symbol_icon": "👨‍🍳",
+        "backdrop_name": "Tomato",
+        "convert_value": 28000,
+        "bg_theme": "tomato_red",
+        "desc": "A deliciously frosty pine cone treat crafted by the master chef.",
+    },
     "skull_blossom": {
         "name": "Skull Blossom",
         "emoji": "🌸💀",
