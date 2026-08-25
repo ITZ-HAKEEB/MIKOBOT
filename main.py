@@ -145,13 +145,17 @@ async def _send_verify_prompt(bot, chat, member):
                 _VERIFY_SENT_CACHE.pop(k, None)
 
     mention = member.mention_html()
-    chat_title = html.escape(chat.title or "the group")
-    verify_text = (
+    first_name = html.escape(member.first_name or "ᴛʜᴇʀᴇ")
+    chat_title = html.escape(chat.title or "ᴛʜᴇ ɢʀᴏᴜᴘ")
+
+    # Private DM welcome message (same styled format as join request DM)
+    dm_text = (
         f"👋 <b>Hᴇʏ {mention} ࿐</b>\n\n"
-        f"🛡️ <b>Wᴇʟᴄᴏᴍᴇ ᴛᴏ {chat_title}!</b>\n"
-        "👉 <i>Pʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴛʜᴇ ᴠᴇʀɪꜰʏ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ ᴛᴏ ᴄᴏɴꜰɪʀᴍ ʏᴏᴜ'ʀᴇ ʜᴜᴍᴀɴ ᴀɴᴅ ᴜɴʟᴏᴄᴋ ʏᴏᴜʀ ᴘʟᴀʏᴇʀ ᴘʀᴏꜰɪʟᴇ &amp; ɢᴀᴍɪɴɢ ꜱᴛᴀᴛꜱ.</i>"
+        f"💓 <b>ʏᴏᴜ'ᴠᴇ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴊᴏɪɴᴇᴅ</b> <i>{chat_title}</i><b>!</b>\n\n"
+        "🛡️ <i>ᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ʏᴏᴜʀꜱᴇʟꜰ</i>\n"
+        "🎮 <i>ᴀɴᴅ ᴜɴʟᴏᴄᴋ ʏᴏᴜʀ ɢᴀᴍɪɴɢ ᴘʀᴏꜰɪʟᴇ & ꜱᴛᴀᴛꜱ!</i>"
     )
-    verify_kb = InlineKeyboardMarkup([
+    dm_kb = InlineKeyboardMarkup([
         [InlineKeyboardButton("🔘 ᴠᴇʀɪꜰʏ ʜᴇʀᴇ ✅", callback_data=f"verify_join:{member.id}")]
     ])
 
@@ -161,10 +165,10 @@ async def _send_verify_prompt(bot, chat, member):
     except Exception as e:
         print(f"Error sending group welcome in {chat.id}: {e}")
 
-    # 2. Send verification prompt directly to user's PRIVATE DM with verify button
+    # 2. Send styled welcome DM directly to user's PRIVATE chat with verify button
     try:
-        await bot.send_message(chat_id=member.id, text=verify_text, reply_markup=verify_kb, parse_mode="HTML")
-    except Exception as e:
+        await bot.send_message(chat_id=member.id, text=dm_text, reply_markup=dm_kb, parse_mode="HTML")
+    except Exception:
         pass
 
 
