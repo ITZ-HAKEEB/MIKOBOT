@@ -121,12 +121,12 @@ async def welcome_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
     bot_id = getattr(context.bot, "id", None)
     adder = update.effective_user
-    adder_name = adder.first_name if adder and adder.first_name else "Λᴅᴠᴀʏ"
 
     for member in new_members:
         if bot_id and member.id == bot_id:
+            adder_mention = adder.mention_html() if adder else "<b>Λᴅᴠᴀʏ</b>"
             bot_add_msg = (
-                f"<b>👀 Hii {html.escape(adder_name)} ࿐\n\n"
+                f"<b>👀 Hii {adder_mention} ࿐\n\n"
                 "💓 Tʜᴀɴᴋꜱ Fᴏʀ Aᴅᴅɪɴɢ Mᴇ Iɴ Tʜɪꜱ Cʜᴀᴛ\n"
                 "💓 Cʟᴏꜱᴇ Gᴀᴍɪɴɢ Cᴏᴍᴍᴀɴᴅꜱ: /close\n"
                 "💓 Rᴇᴏᴘᴇɴ Gᴀᴍɪɴɢ Cᴏᴍᴍᴀɴᴅꜱ : /open\n"
@@ -136,12 +136,12 @@ async def welcome_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE
             await update.message.reply_text(bot_add_msg, parse_mode="HTML")
             return
 
-        # Send verification button for newly joined user
-        member_name = member.first_name or member.username or "User"
-        mention = f'<a href="tg://user?id={member.id}">{html.escape(member_name)}</a>'
+        # Send verification button for newly joined user with clean clickable mention
+        mention = member.mention_html()
+        chat_title = html.escape(update.effective_chat.title) if (update.effective_chat and update.effective_chat.title) else "the group"
         verify_text = (
             f"👋 <b>Hᴇʏ {mention} ࿐</b>\n\n"
-            "🛡️ <b>Wᴇʟᴄᴏᴍᴇ ᴛᴏ ᴛʜᴇ ɢʀᴏᴜᴘ!</b>\n"
+            f"🛡️ <b>Wᴇʟᴄᴏᴍᴇ ᴛᴏ {chat_title}!</b>\n"
             "👉 <i>Pʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴛʜᴇ ᴠᴇʀɪꜰʏ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ ᴛᴏ ᴄᴏɴꜰɪʀᴍ ʏᴏᴜ'ʀᴇ ʜᴜᴍᴀɴ ᴀɴᴅ ᴜɴʟᴏᴄᴋ ʏᴏᴜʀ ᴘʟᴀʏᴇʀ ᴘʀᴏꜰɪʟᴇ &amp; ɢᴀᴍɪɴɢ ꜱᴛᴀᴛꜱ.</i>"
         )
         verify_kb = InlineKeyboardMarkup([
