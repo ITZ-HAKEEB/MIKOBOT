@@ -1343,12 +1343,21 @@ async def setemoji(update, context):
     args = context.args or []
     ud = get_user(user.id, user.username or user.first_name or "User", user.first_name)
     if not ud.get("premium"):
-        from telegram import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+        chat = update.effective_chat
+        is_group = bool(chat and chat.type != "private")
         uid = user.id
         checkout_url = f"https://mike-payment.vercel.app/checkout.html?user_id={uid}"
-        kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("💳 ᴘᴀʏ ɴᴏᴡ → ɢᴇᴛ ᴘʀᴇᴍɪᴜᴍ", web_app=WebAppInfo(url=checkout_url))],
-        ])
+        
+        if is_group:
+            from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+            kb = InlineKeyboardMarkup([
+                [InlineKeyboardButton("💳 ᴘᴀʏ ɴᴏᴡ → ɢᴇᴛ ᴘʀᴇᴍɪᴜᴍ", url=checkout_url)],
+            ])
+        else:
+            from telegram import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+            kb = InlineKeyboardMarkup([
+                [InlineKeyboardButton("💳 ᴘᴀʏ ɴᴏᴡ → ɢᴇᴛ ᴘʀᴇᴍɪᴜᴍ", web_app=WebAppInfo(url=checkout_url))],
+            ])
         await update.message.reply_text(
             "💓 Oɴʟʏ Pʀᴇᴍɪᴜᴍ Uꜱᴇʀꜱ Cᴀɴ Sᴇᴛ Tʜᴇɪʀ Cᴜꜱᴛᴏᴍ Eᴍᴏᴊɪ.\n"
             " Uᴘɢʀᴀᴅᴇ Tᴏ Pʀᴇᴍɪᴜᴍ → /pay",

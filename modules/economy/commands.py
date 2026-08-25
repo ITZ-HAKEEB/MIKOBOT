@@ -1002,11 +1002,20 @@ async def pfp_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🛡️ <b>Shield:</b> {shield_status}"
     )
 
-    from telegram import WebAppInfo
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📱 OPEN MINI APP PROFILE", web_app=WebAppInfo(url=f"https://mike-payment.vercel.app/app.html?user_id={target_id}"))],
-        [InlineKeyboardButton("🏆 LIVE LEADERBOARDS", web_app=WebAppInfo(url="https://mike-payment.vercel.app/app.html?tab=leaderboards"))],
-    ])
+    chat = update.effective_chat
+    is_group = bool(chat and chat.type != "private")
+    profile_url = f"https://mike-payment.vercel.app/app.html?user_id={target_id}"
+    lb_url = "https://mike-payment.vercel.app/app.html?tab=leaderboards"
+
+    if is_group:
+        btn1 = InlineKeyboardButton("📱 OPEN MINI APP PROFILE", url=profile_url)
+        btn2 = InlineKeyboardButton("🏆 LIVE LEADERBOARDS", url=lb_url)
+    else:
+        from telegram import WebAppInfo
+        btn1 = InlineKeyboardButton("📱 OPEN MINI APP PROFILE", web_app=WebAppInfo(url=profile_url))
+        btn2 = InlineKeyboardButton("🏆 LIVE LEADERBOARDS", web_app=WebAppInfo(url=lb_url))
+
+    kb = InlineKeyboardMarkup([[btn1], [btn2]])
     await update.message.reply_text(msg, reply_markup=kb, parse_mode="HTML")
 
 
@@ -1057,6 +1066,9 @@ async def resetgroup_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("ℹ️ Yᴏᴜ ʜᴀᴠᴇɴ'ᴛ ꜱᴇᴛ ᴀ ʜᴏᴍᴇ ɢʀᴏᴜᴘ ʏᴇᴛ. Uꜱᴇ /setgroup ɪɴ ᴀ ɢʀᴏᴜᴘ.")
         return
     update_user(user.id, home_group=None)
+    await update.message.reply_text("✅ Yᴏᴜʀ ʜᴏᴍᴇ ɢʀᴏᴜᴘ ʜᴀꜱ ʙᴇᴇɴ ᴄʟᴇᴀʀᴇᴅ. Uꜱᴇ /setgroup ɪɴ ᴀɴʏ ɢʀᴏᴜᴘ ᴛᴏ ꜱᴇᴛ ᴀ ɴᴇᴡ ᴏɴᴇ.")
+
+
 async def gifts_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """View owned collectible NFT gifts and open the gifts tab in the mini app."""
     user = update.effective_user
@@ -1081,10 +1093,17 @@ async def gifts_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     lines.append("\n💡 <i>Oᴘᴇɴ ᴛʜᴇ Mɪɴɪ Aᴘᴘ ᴛᴏ ᴄᴏɴᴠᴇʀᴛ NFTꜱ ɪɴᴛᴏ ᴄᴏɪɴꜱ ᴏʀ ᴘɪɴ ᴛʜᴇᴍ ᴛᴏ ʏᴏᴜʀ ᴘʀᴏꜰɪʟᴇ!</i>")
     
-    from telegram import WebAppInfo
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🎁 OPEN GIFTS MINI APP", web_app=WebAppInfo(url=f"https://mike-payment.vercel.app/app.html?tab=gifts&user_id={user.id}"))]
-    ])
+    chat = update.effective_chat
+    is_group = bool(chat and chat.type != "private")
+    gifts_url = f"https://mike-payment.vercel.app/app.html?tab=gifts&user_id={user.id}"
+
+    if is_group:
+        btn = InlineKeyboardButton("🎁 OPEN GIFTS MINI APP", url=gifts_url)
+    else:
+        from telegram import WebAppInfo
+        btn = InlineKeyboardButton("🎁 OPEN GIFTS MINI APP", web_app=WebAppInfo(url=gifts_url))
+
+    kb = InlineKeyboardMarkup([[btn]])
     await update.message.reply_text("\n".join(lines), reply_markup=kb, parse_mode="HTML")
 
 
