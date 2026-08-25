@@ -115,12 +115,55 @@ async def track_chat_activity(update: Update, context: ContextTypes.DEFAULT_TYPE
             add_user_chat(user.id)
 
 
+_VERIFY_SENT_CACHE: Dict[str, float] = {}
+
+
+async def _send_verify_prompt(bot, chat, member):
+    if not chat or not member:
+        return
+    bot_id = getattr(bot, "id", None)
+    if bot_id and member.id == bot_id:
+        return
+    if getattr(member, "is_bot", False):
+        return
+
+    key = f"{chat.id}:{member.id}"
+    now = time.time()
+    last_sent = _VERIFY_SENT_CACHE.get(key, 0)
+    if now - last_sent < 60:
+        return  # Already sent recently
+    _VERIFY_SENT_CACHE[key] = now
+
+    # Clean old cache entries
+    if len(_VERIFY_SENT_CACHE) > 500:
+        cutoff = now - 300
+        for k in list(_VERIFY_SENT_CACHE.keys()):
+            if _VERIFY_SENT_CACHE[k] < cutoff:
+                _VERIFY_SENT_CACHE.pop(k, None)
+
+    mention = member.mention_html()
+    chat_title = html.escape(chat.title or "the group")
+    verify_text = (
+        f"👋 <b>Hᴇʏ {mention} ࿐</b>\n\n"
+        f"🛡️ <b>Wᴇʟᴄᴏᴍᴇ ᴛᴏ {chat_title}!</b>\n"
+        "👉 <i>Pʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴛʜᴇ ᴠᴇʀɪꜰʏ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ ᴛᴏ ᴄᴏɴꜰɪʀᴍ ʏᴏᴜ'ʀᴇ ʜᴜᴍᴀɴ ᴀɴᴅ ᴜɴʟᴏᴄᴋ ʏᴏᴜʀ ᴘʟᴀʏᴇʀ ᴘʀᴏꜰɪʟᴇ &amp; ɢᴀᴍɪɴɢ ꜱᴛᴀᴛꜱ.</i>"
+    )
+    verify_kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔘 ᴠᴇʀɪꜰʏ ʜᴇʀᴇ ✅", callback_data=f"verify_join:{member.id}")]
+    ])
+    try:
+        await bot.send_message(chat_id=chat.id, text=verify_text, reply_markup=verify_kb, parse_mode="HTML")
+    except Exception as e:
+        print(f"Error sending verify prompt to chat {chat.id} for member {member.id}: {e}")
+
+
 async def welcome_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
     new_members = getattr(update.message, "new_chat_members", None) or []
     if not new_members:
         return
     bot_id = getattr(context.bot, "id", None)
     adder = update.effective_user
+    chat = update.effective_chat
 
     for member in new_members:
         if bot_id and member.id == bot_id:
@@ -133,21 +176,32 @@ async def welcome_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE
                 "💓 Eᴄᴏɴᴏᴍʏ Cᴏᴍᴍᴀɴᴅꜱ : /economy\n"
                 "💓 Aʟʟ Mɪᴋᴏ Gᴀᴍᴇꜱ : /game</b>"
             )
-            await update.message.reply_text(bot_add_msg, parse_mode="HTML")
+            try:
+                await update.message.reply_text(bot_add_msg, parse_mode="HTML")
+            except Exception:
+                pass
             return
 
-        # Send verification button for newly joined user with clean clickable mention
-        mention = member.mention_html()
-        chat_title = html.escape(update.effective_chat.title) if (update.effective_chat and update.effective_chat.title) else "the group"
-        verify_text = (
-            f"👋 <b>Hᴇʏ {mention} ࿐</b>\n\n"
-            f"🛡️ <b>Wᴇʟᴄᴏᴍᴇ ᴛᴏ {chat_title}!</b>\n"
-            "👉 <i>Pʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴛʜᴇ ᴠᴇʀɪꜰʏ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ ᴛᴏ ᴄᴏɴꜰɪʀᴍ ʏᴏᴜ'ʀᴇ ʜᴜᴍᴀɴ ᴀɴᴅ ᴜɴʟᴏᴄᴋ ʏᴏᴜʀ ᴘʟᴀʏᴇʀ ᴘʀᴏꜰɪʟᴇ &amp; ɢᴀᴍɪɴɢ ꜱᴛᴀᴛꜱ.</i>"
-        )
-        verify_kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔘 ᴠᴇʀɪꜰʏ ʜᴇʀᴇ ✅", callback_data=f"verify_join:{member.id}")]
-        ])
-        await update.message.reply_text(verify_text, reply_markup=verify_kb, parse_mode="HTML")
+        await _send_verify_prompt(context.bot, chat, member)
+
+
+async def on_chat_member_updated(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    result = update.chat_member
+    if not result:
+        return
+    chat = update.effective_chat
+    if not chat or chat.type == "private":
+        return
+
+    old_status = result.old_chat_member.status
+    new_status = result.new_chat_member.status
+
+    was_member = old_status in ("member", "administrator", "creator", "restricted") and getattr(result.old_chat_member, "is_member", True)
+    is_member = new_status in ("member", "administrator", "restricted") and getattr(result.new_chat_member, "is_member", True)
+
+    if (not was_member or old_status in ("left", "kicked", "banned")) and is_member:
+        member = result.new_chat_member.user
+        await _send_verify_prompt(context.bot, chat, member)
 
 
 async def on_my_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -822,6 +876,7 @@ def main():
     app.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_callback))
     app.add_handler(MessageHandler(filters.ALL, track_chat_activity), group=-1)
     app.add_handler(ChatMemberHandler(on_my_chat_member, ChatMemberHandler.MY_CHAT_MEMBER))
+    app.add_handler(ChatMemberHandler(on_chat_member_updated, ChatMemberHandler.CHAT_MEMBER))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_members))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_prefix_command), group=1)
     app.add_handler(MessageHandler(filters.ChatType.PRIVATE & (filters.TEXT | filters.Sticker.ALL) & ~filters.COMMAND, dm_chatbot_handler), group=2)
