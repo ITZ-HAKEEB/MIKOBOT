@@ -154,26 +154,11 @@ async def _send_verify_prompt(bot, chat, member):
         [InlineKeyboardButton("🔘 ᴠᴇʀɪꜰʏ ʜᴇʀᴇ ✅", callback_data=f"verify_join:{member.id}")]
     ])
 
-    # Send verification prompt directly to user's PRIVATE DM
+    # Send verification prompt directly to user's PRIVATE DM exclusively
     try:
         await bot.send_message(chat_id=member.id, text=verify_text, reply_markup=verify_kb, parse_mode="HTML")
     except Exception as e:
-        print(f"Cannot DM user {member.id} directly ({e}). Sending group notice to open DM...")
-        bot_username = getattr(bot, "username", None)
-        if not bot_username:
-            try:
-                bot_user = await bot.get_me()
-                bot_username = bot_user.username
-            except Exception:
-                bot_username = "i_mikobot"
-        dm_kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("💬 ᴠᴇʀɪꜰʏ ɪɴ ᴘʀɪᴠᴀᴛᴇ ᴅᴍ 🛡️", url=f"https://t.me/{bot_username}?start=true")]
-        ])
-        group_notice = f"👋 <b>Hᴇʏ {mention}</b>, ᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ʙᴇʟᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ʏᴏᴜʀꜱᴇʟꜰ ɪɴ ᴘʀɪᴠᴀᴛᴇ ᴅᴍ!"
-        try:
-            await bot.send_message(chat_id=chat.id, text=group_notice, reply_markup=dm_kb, parse_mode="HTML")
-        except Exception:
-            pass
+        print(f"Error sending private DM to user {member.id}: {e}")
 
 
 async def welcome_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
