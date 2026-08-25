@@ -553,6 +553,13 @@ async def rob_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    if td.get("balance", 0) <= 1000:
+        await update.message.reply_text(
+            f"🛡️ Yᴏᴜ Cᴀɴɴᴏᴛ Rᴏʙ Tʜɪꜱ Uꜱᴇʀ!\n"
+            f"💰 Tʜᴇʏ Hᴀᴠᴇ $1000 ᴏʀ Lᴇꜱꜱ — Mɪɴɪᴍᴜᴍ Bᴀʟᴀɴᴄᴇ Pʀᴏᴛᴇᴄᴛᴇᴅ."
+        )
+        return
+
     if td.get("balance", 0) < amount:
         await update.message.reply_text(f"💸 Target only has ${td.get('balance', 0)} to rob!")
         return
