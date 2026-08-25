@@ -135,7 +135,19 @@ async def welcome_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE
             )
             await update.message.reply_text(bot_add_msg, parse_mode="HTML")
             return
-        await update.message.reply_text("💓 welcome —͟͞͞Mɪᴋᴏ 亗")
+
+        # Send verification button for newly joined user
+        member_name = member.first_name or member.username or "User"
+        mention = f'<a href="tg://user?id={member.id}">{html.escape(member_name)}</a>'
+        verify_text = (
+            f"👋 <b>Hᴇʏ {mention} ࿐</b>\n\n"
+            "🛡️ <b>Wᴇʟᴄᴏᴍᴇ ᴛᴏ ᴛʜᴇ ɢʀᴏᴜᴘ!</b>\n"
+            "👉 <i>Pʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴛʜᴇ ᴠᴇʀɪꜰʏ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ ᴛᴏ ᴄᴏɴꜰɪʀᴍ ʏᴏᴜ'ʀᴇ ʜᴜᴍᴀɴ ᴀɴᴅ ᴜɴʟᴏᴄᴋ ʏᴏᴜʀ ᴘʟᴀʏᴇʀ ᴘʀᴏꜰɪʟᴇ &amp; ɢᴀᴍɪɴɢ ꜱᴛᴀᴛꜱ.</i>"
+        )
+        verify_kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔘 ᴠᴇʀɪꜰʏ ʜᴇʀᴇ ✅", callback_data=f"verify_join:{member.id}")]
+        ])
+        await update.message.reply_text(verify_text, reply_markup=verify_kb, parse_mode="HTML")
 
 
 async def on_my_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -234,6 +246,67 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if data.startswith("wspr_"):
         await whisper_callback_handler(update, context)
+        return
+
+    if data.startswith("verify_join:"):
+        caller = query.from_user
+        parts = data.split(":")
+        try:
+            target_uid = int(parts[1])
+        except Exception:
+            target_uid = caller.id
+
+        if caller.id != target_uid:
+            await query.answer("⚠️ Tʜɪꜱ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ ʙᴜᴛᴛᴏɴ ɪꜱ ᴏɴʟʏ ꜰᴏʀ ᴛʜᴇ ɴᴇᴡʟʏ ᴊᴏɪɴᴇᴅ ᴜꜱᴇʀ!", show_alert=True)
+            return
+
+        username = caller.username or caller.first_name or "User"
+        display_name = caller.first_name or username
+        ud = get_user(caller.id, username, display_name)
+        toprich_rank = global_rank(caller.id, "balance")
+
+        stats_block = (
+            "<blockquote>"
+            "<b>📊 ʏᴏᴜʀ ꜱᴛᴀᴛꜱ:</b>\n"
+            f"<b>💰 ʙᴀʟᴀɴᴄᴇ:</b> {ud['balance']}\n"
+            f"<b>🏆 ʀᴀɴᴋ:</b> {toprich_rank}\n"
+            f"<b>💎 ɢᴇᴍꜱ:</b> {ud['gems']:.2f}\n"
+            f"<b>🔪 ᴋɪʟʟꜱ:</b> {ud['kills']}"
+            "</blockquote>"
+        )
+        mini_app_url = f"https://mike-payment.vercel.app/app.html?user_id={caller.id}"
+        keyboard = [
+            [InlineKeyboardButton("🌐 ᴏᴘᴇɴ ᴍɪᴋᴏ ᴡᴇʙ ᴀᴘᴘ", url=mini_app_url)],
+            [InlineKeyboardButton("🍀 ᴍɪᴋᴏ ꜰᴇᴀᴛᴜʀᴇꜱ", callback_data="miko_features")],
+            [
+                InlineKeyboardButton("👥 ɢʀᴏᴜᴘꜱ", callback_data="groups"),
+                InlineKeyboardButton("🐻 ᴘʀᴏᴍᴏᴛᴇʀ", url="https://t.me/advaydev"),
+            ],
+            [
+                InlineKeyboardButton("📢 ᴜᴘᴅᴀᴛᴇꜱ", url="https://t.me/i_mikoo"),
+                InlineKeyboardButton("🎮 ɢᴀᴍᴇꜱ", callback_data="games"),
+            ],
+            [
+                InlineKeyboardButton("➕ ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ", url="https://t.me/i_mikobot?startgroup=true"),
+            ],
+        ]
+        start_text = (
+            f"✅ <b>Vᴇʀɪꜰɪᴄᴀᴛɪᴏɴ Sᴜᴄᴄᴇꜱꜱꜰᴜʟ!</b>\n\n"
+            f"💙 ʜɪᴇᴇᴇᴇᴇᴇᴇ {caller.mention_html()} ɪ'ᴍ ᴍɪᴋᴏ - ᴀ ɢᴀᴍɪɴɢ ᴀɴᴅ ᴄʜᴀᴛᴛɪɴɢ ɢɪʀʟ ʜᴀᴠɪɴɢ ʟᴏᴛꜱ ᴏꜰ ꜰᴇᴀᴛᴜʀᴇꜱ ᴛᴏ ᴇɴɢᴀɢᴇ ʏᴏᴜʀ ɢʀᴏᴜᴘ.\n"
+            f"{stats_block}\n"
+            f"<b>🕹️ ʜᴏᴡ ᴛᴏ ᴘʟᴀʏ?</b>\n"
+            f"💰 /bal - ᴄʜᴇᴄᴋ ʏᴏᴜʀ ꜱᴛᴀᴛꜱ\n"
+            f"👤 /pfp - ᴄʜᴇᴄᴋ ʏᴏᴜʀ ᴘꜰᴘ\n"
+            f"🎁 /daily - ɢᴇᴛ ꜰʀᴇᴇ ᴄᴏɪɴꜱ\n"
+            f"🛡️ /protect - ꜱᴀᴠᴇ ʏᴏᴜʀꜱᴇʟꜰ\n"
+            f"⚔️ /kill &amp; /rob - ʟᴏᴏᴛ ᴏᴛʜᴇʀꜱ\n\n"
+            f"👇 ᴄʜᴏᴏꜱᴇ ᴀɴ ᴏᴘᴛɪᴏɴ ʙᴇʟᴏᴡ :"
+        )
+        await query.answer("✅ Verified successfully! Welcome to Miko!", show_alert=False)
+        try:
+            await query.edit_message_text(text=start_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        except Exception:
+            await query.message.reply_text(text=start_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
         return
 
     if data.startswith("fund_acc:") or data.startswith("fund_rej:"):
