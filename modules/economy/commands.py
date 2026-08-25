@@ -542,6 +542,17 @@ async def rob_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     rd = get_user(robber.id, robber.username or robber.first_name or "User", robber.first_name)
     td = get_user(target.id, target.username or target.first_name or "User", target.first_name)
 
+    # Max rob cap: 4000 for premium, 2000 for normal
+    max_rob = 4000 if rd.get("premium") else 2000
+    if amount > max_rob:
+        await update.message.reply_text(
+            f"⚠️ Mᴀx Rᴏʙ Aᴍᴏᴜɴᴛ: ${max_rob} "
+            f"({'Pʀᴇᴍɪᴜᴍ' if rd.get('premium') else 'Nᴏʀᴍᴀʟ'} Uꜱᴇʀ).\n"
+            f"💓 Uᴘɢʀᴀᴅᴇ ᴛᴏ Pʀᴇᴍɪᴜᴍ → /pay" if not rd.get("premium") else
+            f"⚠️ Mᴀx Rᴏʙ Aᴍᴏᴜɴᴛ ɪꜱ ${max_rob}."
+        )
+        return
+
     if td.get("balance", 0) < amount:
         await update.message.reply_text(f"💸 Target only has ${td.get('balance', 0)} to rob!")
         return
@@ -560,10 +571,12 @@ async def rob_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await update.message.reply_text(
                 "🛡️ Vɪᴄᴛɪᴍ Iꜱ Pʀᴏᴛᴇᴄᴛᴇᴅ Rɪɢʜᴛ Nᴏᴡ.\n"
-                "🔒Cʜᴇᴄᴋ Pʀᴏᴛᴇᴄᴛɪᴏɴ Tɪ姆ᴇ → /check"
-                .replace("姆", "")
+                "🔒Cʜᴇᴄᴋ Pʀᴏᴛᴇᴄᴛɪᴏɴ Tɪᴍᴇ → /check"
             )
             return
+
+    # 10% deduction → robber gains 90%
+    gained = int(amount * 0.9)
 
     # Track daily task rob progress
     task_data = get_user_daily_task(rd)
@@ -584,11 +597,28 @@ async def rob_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     a_mention = f'<a href="tg://user?id={robber.id}">{html.escape(a_name)}</a>'
     t_mention = f'<a href="tg://user?id={target.id}">{html.escape(t_name)}</a>'
 
+    # Group name for the DM notification
+    chat = update.effective_chat
+    group_name = html.escape(chat.title or "a group") if chat and chat.type != "private" else "Private"
+
     text = (
         f"👤 {a_mention} Rᴏʙʙᴇᴅ ${amount} Fʀᴏᴍ {t_mention}\n"
         f"💰 Gᴀɪɴᴇᴅ ${gained}, +0 Xᴘ Aꜰᴛᴇʀ 10% Dᴇᴅᴜᴄᴛɪᴏɴ."
     )
     await update.message.reply_text(text, parse_mode="HTML")
+
+    # Send private DM to the victim
+    dm_text = (
+        f"💸 Yᴏᴜ Wᴇʀᴇ Rᴏʙʙᴇᴅ\n\n"
+        f"👤 Tʜɪᴇꜰ: {a_name}\n"
+        f"💰 Aᴍᴏᴜɴᴛ Sᴛᴏʟᴇɴ: ${amount}\n"
+        f"⚡ Xᴘ Dᴇᴅᴜᴄᴛᴇᴅ: 0\n"
+        f"📍 Gʀᴏᴜᴘ: {group_name}"
+    )
+    try:
+        await context.bot.send_message(chat_id=target.id, text=dm_text)
+    except Exception:
+        pass  # User may not have started the bot in DM
 
 
 async def revive(update: Update, context: ContextTypes.DEFAULT_TYPE):
