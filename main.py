@@ -5,7 +5,7 @@ import random
 import asyncio
 from typing import Dict, Any, List, Optional, Set
 from dotenv import load_dotenv
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import (
     ApplicationBuilder,
     ContextTypes,
