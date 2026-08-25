@@ -35,6 +35,73 @@ DEFAULT_USER = {
     "home_group": None,
     "protected_until": 0,
     "protection_alerts": [],
+    "gifts": [],
+}
+
+GIFTS_CATALOG: Dict[str, Dict[str, Any]] = {
+    "skull_blossom": {
+        "name": "Skull Blossom",
+        "emoji": "🌸💀",
+        "rarity": "Mythic",
+        "mint_no": 11615,
+        "convert_value": 35000,
+        "bg_theme": "violet_pink",
+        "desc": "A mythical blossom entwined with ethereal crystal skull essence.",
+    },
+    "afro_dog": {
+        "name": "Afro Doggie",
+        "emoji": "🐶🕶️",
+        "rarity": "Legendary",
+        "mint_no": 82125,
+        "convert_value": 25000,
+        "bg_theme": "retro_green",
+        "desc": "The coolest funk dog on TON blockchain with golden sunglasses.",
+    },
+    "toxic_elixir": {
+        "name": "Toxic Elixir",
+        "emoji": "🧪💚",
+        "rarity": "Epic",
+        "mint_no": 16885,
+        "convert_value": 18000,
+        "bg_theme": "toxic_slime",
+        "desc": "A bubbling radioactive brew infused with alchemical energy.",
+    },
+    "cosmic_pop": {
+        "name": "Cosmic Popsicle",
+        "emoji": "🚀🍦",
+        "rarity": "Epic",
+        "mint_no": 62038,
+        "convert_value": 15000,
+        "bg_theme": "galactic_purple",
+        "desc": "A rocket-fueled popsicle frozen from stardust and neon sugar.",
+    },
+    "snazzle_snack": {
+        "name": "Snazzle Os",
+        "emoji": "🍿🧅",
+        "rarity": "Rare",
+        "mint_no": 73907,
+        "convert_value": 10000,
+        "bg_theme": "cyber_teal",
+        "desc": "Spicy onion cyber-crisps baked in high-tech flavor matrix.",
+    },
+    "star_journal": {
+        "name": "Star Journal",
+        "emoji": "📕⭐",
+        "rarity": "Rare",
+        "mint_no": 34219,
+        "convert_value": 8000,
+        "bg_theme": "crimson_leather",
+        "desc": "A legendary grimoire chronicling ancient celestial secrets.",
+    },
+    "teddy_plush": {
+        "name": "Plush Teddy",
+        "emoji": "🧸💛",
+        "rarity": "Classic",
+        "mint_no": 4921,
+        "convert_value": 5000,
+        "bg_theme": "vintage_cream",
+        "desc": "A heartwarming handcrafted plush bear full of love and luck.",
+    },
 }
 
 POWERS_CATALOG: Dict[str, Dict[str, Any]] = {

@@ -1057,7 +1057,35 @@ async def resetgroup_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("ℹ️ Yᴏᴜ ʜᴀᴠᴇɴ'ᴛ ꜱᴇᴛ ᴀ ʜᴏᴍᴇ ɢʀᴏᴜᴘ ʏᴇᴛ. Uꜱᴇ /setgroup ɪɴ ᴀ ɢʀᴏᴜᴘ.")
         return
     update_user(user.id, home_group=None)
-    await update.message.reply_text("✅ Yᴏᴜʀ ʜᴏᴍᴇ ɢʀᴏᴜᴘ ʜᴀꜱ ʙᴇᴇɴ ᴄʟᴇᴀʀᴇᴅ. Uꜱᴇ /setgroup ɪɴ ᴀɴʏ ɢʀᴏᴜᴘ ᴛᴏ ꜱᴇᴛ ᴀ ɴᴇᴡ ᴏɴᴇ.")
+async def gifts_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """View owned collectible NFT gifts and open the gifts tab in the mini app."""
+    user = update.effective_user
+    ud = get_user(user.id, user.username or user.first_name or "User", user.first_name)
+    raw_name = ud.get("display_name") or getattr(user, "full_name", None) or user.first_name or "User"
+    mention = f'<a href="tg://user?id={user.id}">{html.escape(raw_name)}</a>'
+    
+    gifts_list = ud.get("gifts") or [
+        {"name": "Skull Blossom", "mint_no": 11615, "emoji": "🌸💀", "rarity": "Mythic", "convert_value": 35000, "pinned": True},
+        {"name": "Afro Doggie", "mint_no": 82125, "emoji": "🐶🕶️", "rarity": "Legendary", "convert_value": 25000, "pinned": True},
+        {"name": "Toxic Elixir", "mint_no": 16885, "emoji": "🧪💚", "rarity": "Epic", "convert_value": 18000, "pinned": True},
+        {"name": "Cosmic Popsicle", "mint_no": 62038, "emoji": "🚀🍦", "rarity": "Epic", "convert_value": 15000, "pinned": True},
+        {"name": "Snazzle Os", "mint_no": 73907, "emoji": "🍿🧅", "rarity": "Rare", "convert_value": 10000, "pinned": True},
+        {"name": "Star Journal", "mint_no": 34219, "emoji": "📕⭐", "rarity": "Rare", "convert_value": 8000, "pinned": True},
+        {"name": "Plush Teddy", "mint_no": 4921, "emoji": "🧸💛", "rarity": "Classic", "convert_value": 5000, "pinned": False},
+    ]
+    
+    lines = [f"🎁 <b>{mention}'ꜱ Cᴏʟʟᴇᴄᴛɪʙʟᴇ Gɪғᴛꜱ (NFTꜱ):</b>\n"]
+    for g in gifts_list:
+        pin = "📌 " if g.get("pinned") else ""
+        lines.append(f"{pin}{g.get('emoji', '🎁')} <b>{g.get('name')}</b> (#{g.get('mint_no')}) — <i>${g.get('convert_value', 0):,} Coins</i>")
+    
+    lines.append("\n💡 <i>Oᴘᴇɴ ᴛʜᴇ Mɪɴɪ Aᴘᴘ ᴛᴏ ᴄᴏɴᴠᴇʀᴛ NFTꜱ ɪɴᴛᴏ ᴄᴏɪɴꜱ ᴏʀ ᴘɪɴ ᴛʜᴇᴍ ᴛᴏ ʏᴏᴜʀ ᴘʀᴏꜰɪʟᴇ!</i>")
+    
+    from telegram import WebAppInfo
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🎁 OPEN GIFTS MINI APP", web_app=WebAppInfo(url=f"https://mike-payment.vercel.app/app.html?tab=gifts&user_id={user.id}"))]
+    ])
+    await update.message.reply_text("\n".join(lines), reply_markup=kb, parse_mode="HTML")
 
 
 HANDLERS = {
@@ -1086,4 +1114,5 @@ HANDLERS = {
     "convert": convert_cmd,
     "setgroup": setgroup_cmd,
     "resetgroup": resetgroup_cmd,
+    "gifts": gifts_cmd,
 }

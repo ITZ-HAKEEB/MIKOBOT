@@ -6,6 +6,7 @@ BOT_COMMANDS = [
     BotCommand("start", "Talk To Miko"),
     BotCommand("pay", "Baka Premium Access Portal"),
     BotCommand("spay", "Buy VIP Premium with Stars (/spay user_id)"),
+    BotCommand("gifts", "View Your NFT Collectible Gifts"),
     BotCommand("premium", "Baka Premium Access Portal"),
     BotCommand("addprem", "Owner: Grant VIP Premium (/addprem user_id)"),
     BotCommand("gems", "Check Your Gems"),
