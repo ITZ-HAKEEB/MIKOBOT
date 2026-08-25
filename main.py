@@ -154,7 +154,13 @@ async def _send_verify_prompt(bot, chat, member):
         [InlineKeyboardButton("🔘 ᴠᴇʀɪꜰʏ ʜᴇʀᴇ ✅", callback_data=f"verify_join:{member.id}")]
     ])
 
-    # Send verification prompt directly to user's PRIVATE DM exclusively
+    # 1. Send short stylish welcome message in group with user mention
+    try:
+        await bot.send_message(chat_id=chat.id, text=f"💓 welcome {mention}", parse_mode="HTML")
+    except Exception as e:
+        print(f"Error sending group welcome in {chat.id}: {e}")
+
+    # 2. Send verification prompt directly to user's PRIVATE DM
     try:
         await bot.send_message(chat_id=member.id, text=verify_text, reply_markup=verify_kb, parse_mode="HTML")
     except Exception as e:
