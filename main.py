@@ -153,10 +153,27 @@ async def _send_verify_prompt(bot, chat, member):
     verify_kb = InlineKeyboardMarkup([
         [InlineKeyboardButton("🔘 ᴠᴇʀɪꜰʏ ʜᴇʀᴇ ✅", callback_data=f"verify_join:{member.id}")]
     ])
+
+    # Send verification prompt directly to user's PRIVATE DM
     try:
-        await bot.send_message(chat_id=chat.id, text=verify_text, reply_markup=verify_kb, parse_mode="HTML")
+        await bot.send_message(chat_id=member.id, text=verify_text, reply_markup=verify_kb, parse_mode="HTML")
     except Exception as e:
-        print(f"Error sending verify prompt to chat {chat.id} for member {member.id}: {e}")
+        print(f"Cannot DM user {member.id} directly ({e}). Sending group notice to open DM...")
+        bot_username = getattr(bot, "username", None)
+        if not bot_username:
+            try:
+                bot_user = await bot.get_me()
+                bot_username = bot_user.username
+            except Exception:
+                bot_username = "i_mikobot"
+        dm_kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("💬 ᴠᴇʀɪꜰʏ ɪɴ ᴘʀɪᴠᴀᴛᴇ ᴅᴍ 🛡️", url=f"https://t.me/{bot_username}?start=true")]
+        ])
+        group_notice = f"👋 <b>Hᴇʏ {mention}</b>, ᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ʙᴇʟᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ʏᴏᴜʀꜱᴇʟꜰ ɪɴ ᴘʀɪᴠᴀᴛᴇ ᴅᴍ!"
+        try:
+            await bot.send_message(chat_id=chat.id, text=group_notice, reply_markup=dm_kb, parse_mode="HTML")
+        except Exception:
+            pass
 
 
 async def welcome_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -331,8 +348,15 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "</blockquote>"
         )
         mini_app_url = f"https://mike-payment.vercel.app/app.html?user_id={caller.id}"
+        chat = update.effective_chat
+        is_private = (chat and chat.type == "private") or (query.message and query.message.chat and query.message.chat.type == "private")
+        web_btn = (
+            InlineKeyboardButton("🌐 ᴏᴘᴇɴ ᴍɪᴋᴏ ᴡᴇʙ ᴀᴘᴘ", web_app=WebAppInfo(url=mini_app_url))
+            if is_private
+            else InlineKeyboardButton("🌐 ᴏᴘᴇɴ ᴍɪᴋᴏ ᴡᴇʙ ᴀᴘᴘ", url=mini_app_url)
+        )
         keyboard = [
-            [InlineKeyboardButton("🌐 ᴏᴘᴇɴ ᴍɪᴋᴏ ᴡᴇʙ ᴀᴘᴘ", url=mini_app_url)],
+            [web_btn],
             [InlineKeyboardButton("🍀 ᴍɪᴋᴏ ꜰᴇᴀᴛᴜʀᴇꜱ", callback_data="miko_features")],
             [
                 InlineKeyboardButton("👥 ɢʀᴏᴜᴘꜱ", callback_data="groups"),
