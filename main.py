@@ -13,6 +13,7 @@ from telegram.ext import (
     CallbackQueryHandler,
     MessageHandler,
     ChatMemberHandler,
+    ChatJoinRequestHandler,
     InlineQueryHandler,
     PreCheckoutQueryHandler,
     filters,
@@ -240,6 +241,29 @@ async def on_my_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(chat_id=chat.id, text=bot_add_msg, parse_mode="HTML")
         except Exception:
             pass
+
+
+async def handle_chat_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Send a 'waiting for approval' DM when user submits a join request."""
+    join_request = update.chat_join_request
+    if not join_request:
+        return
+    user = join_request.from_user
+    chat = join_request.chat
+    if not user or not chat:
+        return
+    chat_title = html.escape(chat.title or "ᴛʜᴇ ɢʀᴏᴜᴘ")
+    mention = user.mention_html()
+    msg = (
+        f"👋 <b>Hᴇʏ {mention} ࿐</b>\n\n"
+        f"⏳ <b>ʏᴏᴜʀ ʀᴇQᴜᴇꜱᴛ ᴛᴏ ᴊᴏɪɴ</b> <i>{chat_title}</i> <b>ʜᴀꜱ ʙᴇᴇɴ ꜱᴇɴᴛ!</b>\n\n"
+        "🔘 <i>ᴘʟᴇᴀꜱᴇ ᴡᴀɪᴛ ᴡʜɪʟᴇ ᴀɴ ᴀᴅᴍɪɴ ʀᴇᴠɪᴇᴡꜱ ᴀɴᴅ ᴀᴄᴄᴇᴘᴛꜱ ʏᴏᴜʀ ʀᴇQᴜᴇꜱᴛ.</i>\n"
+        "💓 <i>ʏᴏᴜ ᴡɪʟʟ ʙᴇ ɴᴏᴛɪꜰɪᴇᴅ ᴏɴᴄᴇ ᴀᴘᴘʀᴏᴠᴇᴅ!</i>"
+    )
+    try:
+        await context.bot.send_message(chat_id=user.id, text=msg, parse_mode="HTML")
+    except Exception as e:
+        pass
 
 
 async def item(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -894,6 +918,7 @@ def main():
     app.add_handler(MessageHandler(filters.ALL, track_chat_activity), group=-1)
     app.add_handler(ChatMemberHandler(on_my_chat_member, ChatMemberHandler.MY_CHAT_MEMBER))
     app.add_handler(ChatMemberHandler(on_chat_member_updated, ChatMemberHandler.CHAT_MEMBER))
+    app.add_handler(ChatJoinRequestHandler(handle_chat_join_request))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_members))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_prefix_command), group=1)
     app.add_handler(MessageHandler(filters.ChatType.PRIVATE & (filters.TEXT | filters.Sticker.ALL) & ~filters.COMMAND, dm_chatbot_handler), group=2)
