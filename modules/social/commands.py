@@ -1100,7 +1100,7 @@ async def q_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         author_name = target_user.first_name or target_user.username or "User"
 
     text = replied.text or replied.caption or (
-        "[Sticker]" if replied.sticker else (
+        (replied.sticker.emoji or "🎭") if replied.sticker else (
             "[Photo]" if replied.photo else (
                 "[Animation]" if replied.animation else (
                     "[Voice]" if replied.voice else "[Media]"
