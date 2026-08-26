@@ -892,6 +892,7 @@ def generate_quote_sticker(
     font_reg_path = "assets/fonts/NotoSans-Regular.ttf" if os.path.exists("assets/fonts/NotoSans-Regular.ttf") else "assets/fonts/Roboto-Regular.ttf"
     font_dev_bold_path = "assets/fonts/NotoSansDevanagari-Bold.ttf"
     font_dev_reg_path = "assets/fonts/NotoSansDevanagari-Regular.ttf"
+    font_emoji_path = "assets/fonts/NotoColorEmoji.ttf"
 
     is_hindi_name = any("\u0900" <= ch <= "\u097f" for ch in styled_name)
     is_hindi_text = any("\u0900" <= ch <= "\u097f" for ch in text)
@@ -911,6 +912,71 @@ def generate_quote_sticker(
     else:
         font_name = ImageFont.load_default()
         font_text = ImageFont.load_default()
+
+    # Emoji font for colour emoji rendering
+    font_emoji = None
+    if os.path.exists(font_emoji_path):
+        try:
+            font_emoji = ImageFont.truetype(font_emoji_path, 109)  # NotoColorEmoji uses larger sizes
+        except Exception:
+            font_emoji = None
+
+    EMOJI_RE = re.compile(
+        "[\U0001F300-\U0001FAFF"
+        "\U00002600-\U000027BF"
+        "\U0001F000-\U0001F02F"
+        "\U0001F0A0-\U0001F0FF"
+        "\U0001F100-\U0001F1FF"
+        "\U0001F200-\U0001F2FF"
+        "\U0001F900-\U0001F9FF"
+        "\U0000FE00-\U0000FE0F"
+        "\U0001FA00-\U0001FA6F"
+        "\U0001FA70-\U0001FAFF]+",
+        re.UNICODE,
+    )
+
+    def draw_text_with_emoji(draw_ctx, x, y, line, base_font, emoji_font, color, dummy):
+        """Draw a line of text, rendering emoji with emoji_font and rest with base_font."""
+        if not emoji_font:
+            draw_ctx.text((x, y), line, fill=color, font=base_font)
+            return
+        segments = EMOJI_RE.split(line)
+        emoji_matches = EMOJI_RE.findall(line)
+        parts = []
+        for i, seg in enumerate(segments):
+            if seg:
+                parts.append((seg, False))
+            if i < len(emoji_matches):
+                parts.append((emoji_matches[i], True))
+        cur_x = x
+        # Calculate baseline offset so emoji vertically aligns with text
+        base_bbox = dummy.textbbox((0, 0), "A", font=base_font)
+        base_h = base_bbox[3] - base_bbox[1]
+        for seg, is_emoji in parts:
+            if not seg:
+                continue
+            if is_emoji:
+                em_bbox = dummy.textbbox((0, 0), seg, font=emoji_font)
+                em_h = em_bbox[3] - em_bbox[1]
+                em_w = em_bbox[2] - em_bbox[0]
+                # Scale emoji to match text height
+                scale = base_h / max(em_h, 1)
+                em_render_size = int(109 * scale)
+                try:
+                    ef = ImageFont.truetype(font_emoji_path, max(10, em_render_size))
+                except Exception:
+                    ef = emoji_font
+                ef_bbox = dummy.textbbox((0, 0), seg, font=ef)
+                ef_h = ef_bbox[3] - ef_bbox[1]
+                ef_w = ef_bbox[2] - ef_bbox[0]
+                ey = y + (base_h - ef_h) // 2
+                draw_ctx.text((cur_x, ey), seg, fill=color, font=ef, embedded_color=True)
+                cur_x += ef_w + 2
+            else:
+                seg_bbox = dummy.textbbox((0, 0), seg, font=base_font)
+                seg_w = seg_bbox[2] - seg_bbox[0]
+                draw_ctx.text((cur_x, y), seg, fill=base_font if False else color, font=base_font)
+                cur_x += seg_w
 
     dummy_draw = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
 
@@ -1040,10 +1106,10 @@ def generate_quote_sticker(
     # User's name in BOLD & BIG with custom font styling
     draw.text((bx + pad_left, by + pad_top), styled_name, fill=author_rgb, font=font_name)
 
-    # Message text in NORMAL
+    # Message text in NORMAL (emoji-aware)
     cur_y = by + pad_top + name_h + 18
     for l in lines:
-        draw.text((bx + pad_left, cur_y), l, fill=text_rgb, font=font_text)
+        draw_text_with_emoji(draw, bx + pad_left, cur_y, l, font_text, font_emoji, text_rgb, dummy_draw)
         cur_y += line_h
 
     max_dim = max(img.size)
