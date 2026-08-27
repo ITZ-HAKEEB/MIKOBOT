@@ -113,7 +113,7 @@ async def track_chat_activity(update: Update, context: ContextTypes.DEFAULT_TYPE
     user = update.effective_user
     if chat:
         if chat.type in ("group", "supergroup"):
-            add_chat(chat.id)
+            add_chat(chat.id, title=chat.title or "Telegram Group", username=chat.username or "")
         elif chat.type == "private" and user:
             add_user_chat(user.id)
 

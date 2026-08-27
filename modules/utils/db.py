@@ -55,7 +55,7 @@ def get_mongo_db() -> Optional[pymongo.database.Database]:
 
 # --- CHATS & USERS TRACKING FOR BROADCAST ---
 
-def add_chat(chat_id: int) -> None:
+def add_chat(chat_id: int, title: Optional[str] = None, username: Optional[str] = None) -> None:
     cid = str(chat_id)
     if _redis_client:
         try:
@@ -64,7 +64,13 @@ def add_chat(chat_id: int) -> None:
             pass
     if _mongo_db is not None:
         try:
-            _mongo_db.chats.update_one({"chat_id": cid}, {"$set": {"chat_id": cid}}, upsert=True)
+            upd: Dict[str, Any] = {"chat_id": cid}
+            if title:
+                upd["title"] = title
+            if username is not None:
+                upd["username"] = username
+            _mongo_db.chats.update_one({"chat_id": cid}, {"$set": upd}, upsert=True)
+            _mongo_db.groups.update_one({"_id": cid}, {"$set": upd}, upsert=True)
         except Exception:
             pass
 
