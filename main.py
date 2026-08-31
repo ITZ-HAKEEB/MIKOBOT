@@ -855,8 +855,12 @@ from modules.utils.db import warmup_redis_cache
 
 async def post_init(app):
     warmup_redis_cache()
-    await app.bot.set_my_commands(BOT_COMMANDS)
-    print(f"✅ ʀᴇɢɪꜱᴛᴇʀᴇᴅ {len(BOT_COMMANDS)} ʙᴏᴛ ᴄᴏᴍᴍᴀɴᴅꜱ ꜰᴏʀ / ꜱᴜɢɢᴇꜱᴛɪᴏɴꜱ!")
+    try:
+        cmds_to_set = BOT_COMMANDS[:100]
+        await app.bot.set_my_commands(cmds_to_set)
+        print(f"✅ ʀᴇɢɪꜱᴛᴇʀᴇᴅ {len(cmds_to_set)} ʙᴏᴛ ᴄᴏᴍᴍᴀɴᴅꜱ ꜰᴏʀ / ꜱᴜɢɢᴇꜱᴛɪᴏɴꜱ!")
+    except Exception as ce:
+        print(f"⚠️ Notice registering commands: {ce}")
 
     # Start background protection expiry alert monitor
     try:
