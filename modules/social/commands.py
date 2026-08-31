@@ -6,6 +6,8 @@ import re
 import random
 import unicodedata
 import base64
+import hashlib
+import asyncio
 import html as html_lib
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
@@ -1727,15 +1729,47 @@ async def setintro(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✅ Your intro has been saved! Preview: /intro me")
 
 
+def _convert_image_to_sticker_bytes(image_bytes: bytes) -> io.BytesIO:
+    """Convert any image to Telegram standard static sticker (512x512 PNG, alpha preserved)."""
+    im = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
+    w, h = im.size
+    scale = 512.0 / max(w, h)
+    new_w = max(1, min(512, int(w * scale)))
+    new_h = max(1, min(512, int(h * scale)))
+    if new_w >= new_h:
+        new_w = 512
+    else:
+        new_h = 512
+    im = im.resize((new_w, new_h), Image.Resampling.LANCZOS)
+    out = io.BytesIO()
+    out.name = "sticker.png"
+    im.save(out, format="PNG", optimize=True)
+    out.seek(0)
+    return out
+
+
 async def own(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Kang / Add Sticker, Photo, or Image Document to your custom sticker pack."""
     replied = update.message.reply_to_message if update.message else None
-    if not replied or not replied.sticker:
+    src_sticker = replied.sticker if (replied and replied.sticker) else None
+    src_photo = replied.photo[-1] if (replied and replied.photo) else None
+    src_doc = (
+        replied.document
+        if (replied and replied.document and (
+            getattr(replied.document, "mime_type", "").startswith("image/") or
+            getattr(replied.document, "file_name", "").lower().endswith((".png", ".jpg", ".jpeg", ".webp"))
+        ))
+        else None
+    )
+
+    if not replied or (not src_sticker and not src_photo and not src_doc):
         await update.message.reply_text(
-            "⚠️ <b>Rᴇᴘʟʏ Tᴏ A Sᴛɪᴄᴋᴇʀ Tᴏ Aᴅᴅ Iɴ Yᴏᴜʀ Pᴀᴄᴋ.</b>\n\n"
-            "👉 <b>Usage:</b>\n"
+            "⚠️ <b>Rᴇᴘʟʏ Tᴏ A Sᴛɪᴄᴋᴇʀ, Pʜᴏᴛᴏ, Oʀ Iᴍᴀɢᴇ Tᴏ Aᴅᴅ Iɴ Yᴏᴜʀ Pᴀᴄᴋ.</b>\n\n"
+            "👉 <b>Uꜱᴀɢᴇ:</b>\n"
             "• <code>/own</code> or <code>/kang</code> (Default Pack)\n"
             "• <code>/own &lt;number&gt;</code> (Create/Add to Pack Vol 2, 3...)\n"
-            "• <code>/own &lt;emoji&gt;</code> or <code>/own &lt;number&gt; &lt;emoji&gt;</code> (Custom Emoji)",
+            "• <code>/own &lt;emoji&gt;</code> (Custom Emoji e.g. <code>/kang 🔥</code>)\n"
+            "• <code>/own &lt;number&gt; &lt;emoji&gt;</code> (e.g. <code>/kang 2 😂</code>)",
             parse_mode="HTML",
         )
         return
@@ -1745,9 +1779,6 @@ async def own(update: Update, context: ContextTypes.DEFAULT_TYPE):
     bot_info = await bot.get_me()
     bot_username = bot_info.username
 
-    src_sticker = replied.sticker
-
-    # Parse optional volume or custom emoji from arguments: e.g. /own 2 🔥 or /kang 3
     args = context.args or []
     target_vol = None
     custom_emoji = None
@@ -1757,28 +1788,44 @@ async def own(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             custom_emoji = a.strip()
 
-    # Determine format
-    if src_sticker.is_animated:
-        st_format = "animated"
-        type_label = "Aɴɪᴍᴀᴛᴇᴅ"
-        base_suffix = f"anim_{user.id}"
-    elif src_sticker.is_video:
-        st_format = "video"
-        type_label = "Vɪᴅᴇᴏ"
-        base_suffix = f"vid_{user.id}"
-    else:
-        st_format = "static"
-        type_label = "Sᴛᴀᴛɪᴄ"
-        base_suffix = f"static_{user.id}"
-
-    emoji = custom_emoji or src_sticker.emoji or "✨"
     wait_msg = await update.message.reply_text("⏳ <i>Processing sticker...</i>", parse_mode="HTML")
 
     try:
-        input_sticker = InputSticker(
-            sticker=src_sticker.file_id,
-            emoji_list=[emoji],
-        )
+        if src_sticker:
+            if src_sticker.is_animated:
+                st_format = "animated"
+                type_label = "Aɴɪᴍᴀᴛᴇᴅ"
+                base_suffix = f"anim_{user.id}"
+            elif src_sticker.is_video:
+                st_format = "video"
+                type_label = "Vɪᴅᴇᴏ"
+                base_suffix = f"vid_{user.id}"
+            else:
+                st_format = "static"
+                type_label = "Sᴛᴀᴛɪᴄ"
+                base_suffix = f"static_{user.id}"
+            emoji = custom_emoji or src_sticker.emoji or "✨"
+            input_sticker = InputSticker(
+                sticker=src_sticker.file_id,
+                emoji_list=[emoji],
+            )
+        else:
+            st_format = "static"
+            type_label = "Sᴛᴀᴛɪᴄ"
+            base_suffix = f"static_{user.id}"
+            emoji = custom_emoji or "✨"
+
+            file_id = src_photo.file_id if src_photo else src_doc.file_id
+            tg_file = await bot.get_file(file_id)
+            buf = io.BytesIO()
+            await tg_file.download_to_memory(buf)
+            buf.seek(0)
+
+            st_buf = _convert_image_to_sticker_bytes(buf.getvalue())
+            input_sticker = InputSticker(
+                sticker=st_buf,
+                emoji_list=[emoji],
+            )
 
         def get_pack_info(v: int):
             v_str = f"_v{v}" if v > 1 else ""
@@ -1855,7 +1902,6 @@ async def own(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 except Exception as create_err:
                     create_msg = str(create_err).lower()
                     if "already occupied" in create_msg or "occupied" in create_msg:
-                        # Pack exists on Telegram: try adding directly to it
                         try:
                             await bot.add_sticker_to_set(
                                 user_id=user.id,
@@ -1871,7 +1917,6 @@ async def own(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             success = True
                             break
                         except Exception:
-                            # Not owner or full, increment volume
                             current_vol += 1
                             continue
                     else:
@@ -1895,6 +1940,345 @@ async def own(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         else:
             await wait_msg.edit_text(f"❌ Error: {e}")
+
+
+async def clone_pack(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Clone an entire sticker set into your own personal sticker pack (fStikBot style)."""
+    replied = update.message.reply_to_message if update.message else None
+    if not replied or not replied.sticker or not replied.sticker.set_name:
+        await update.message.reply_text(
+            "⚠️ <b>Rᴇᴘʟʏ Tᴏ A Sᴛɪᴄᴋᴇʀ Fʀᴏᴍ A Pᴀᴄᴋ Tᴏ Cʟᴏɴᴇ Iᴛ!</b>\n\n"
+            "👉 <b>Uꜱᴀɢᴇ:</b>\n"
+            "• Reply to any sticker with <code>/clone</code>\n"
+            "• Custom Pack Title: <code>/clone My Cool Pack</code>",
+            parse_mode="HTML",
+        )
+        return
+
+    user = update.effective_user
+    bot = context.bot
+    bot_info = await bot.get_me()
+    bot_username = bot_info.username
+
+    src_sticker = replied.sticker
+    src_set_name = src_sticker.set_name
+
+    wait_msg = await update.message.reply_text("⏳ <i>Fetching sticker pack details...</i>", parse_mode="HTML")
+
+    try:
+        src_set = await bot.get_sticker_set(src_set_name)
+    except Exception as e:
+        await wait_msg.edit_text(f"❌ Could not fetch sticker pack: {e}")
+        return
+
+    if not src_set.stickers:
+        await wait_msg.edit_text("❌ This sticker pack is empty.")
+        return
+
+    if src_set.is_animated:
+        st_format = "animated"
+        type_label = "Aɴɪᴍᴀᴛᴇᴅ"
+    elif src_set.is_video:
+        st_format = "video"
+        type_label = "Vɪᴅᴇᴏ"
+    else:
+        st_format = "static"
+        type_label = "Sᴛᴀᴛɪᴄ"
+
+    args = context.args or []
+    custom_title = " ".join(args).strip() if args else None
+    pack_title = custom_title or f"{user.first_name}'s {src_set.title}"
+
+    raw_hash = hashlib.md5(f"{src_set_name}_{user.id}".encode()).hexdigest()[:6]
+    pack_name = f"miko_c_{user.id}_{raw_hash}_by_{bot_username}"
+
+    pack_exists = False
+    try:
+        await bot.get_sticker_set(name=pack_name)
+        pack_exists = True
+    except Exception:
+        pack_exists = False
+
+    stickers_to_copy = list(src_set.stickers)
+    total = len(stickers_to_copy)
+    copied_count = 0
+
+    first_st = stickers_to_copy[0]
+    first_input = InputSticker(
+        sticker=first_st.file_id,
+        emoji_list=first_st.emoji if isinstance(first_st.emoji, list) else [first_st.emoji or "✨"],
+    )
+
+    if not pack_exists:
+        try:
+            await bot.create_new_sticker_set(
+                user_id=user.id,
+                name=pack_name,
+                title=pack_title,
+                stickers=[first_input],
+                sticker_format=st_format,
+            )
+            copied_count = 1
+        except Exception as e:
+            err_str = str(e)
+            if "PEER_ID_INVALID" in err_str or "USER_NOT_MUTUAL_CONTACT" in err_str or "bot can't initiate conversation" in err_str.lower():
+                kb = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("💬 Start Miko In PM", url=f"https://t.me/{bot_username}?start=start")]
+                ])
+                await wait_msg.edit_text(
+                    "⚠️ <b>Pʟᴇᴀꜱᴇ ꜱᴛᴀʀᴛ Mɪᴋᴏ ɪɴ PM ꜰɪʀꜱᴛ ᴛᴏ ᴄʀᴇᴀᴛᴇ ʏᴏᴜʀ ᴏᴡɴ ᴘᴀᴄᴋ!</b>",
+                    parse_mode="HTML",
+                    reply_markup=kb,
+                )
+                return
+            await wait_msg.edit_text(f"❌ Failed to create cloned pack: {e}")
+            return
+
+    remaining = stickers_to_copy[1:] if not pack_exists else stickers_to_copy
+    last_edit_time = time.time()
+
+    for idx, st in enumerate(remaining, start=1 if not pack_exists else 0):
+        try:
+            inp = InputSticker(
+                sticker=st.file_id,
+                emoji_list=st.emoji if isinstance(st.emoji, list) else [st.emoji or "✨"],
+            )
+            await bot.add_sticker_to_set(
+                user_id=user.id,
+                name=pack_name,
+                sticker=inp,
+            )
+            copied_count += 1
+        except Exception:
+            pass
+
+        now = time.time()
+        if (now - last_edit_time > 2.5) or (idx == len(remaining)):
+            last_edit_time = now
+            pct = int((copied_count / total) * 100)
+            filled = int((copied_count / total) * 10)
+            bar = "█" * filled + "░" * (10 - filled)
+            try:
+                await wait_msg.edit_text(
+                    f"⏳ <b>Cʟᴏɴɪɴɢ Sᴛɪᴄᴋᴇʀ Pᴀᴄᴋ...</b>\n\n"
+                    f"📦 <b>Sᴏᴜʀᴄᴇ:</b> {html_lib.escape(src_set.title)}\n"
+                    f"📊 <b>Pʀᴏɢʀᴇꜱꜱ:</b> <code>[{bar}]</code> {pct}% ({copied_count}/{total})\n"
+                    f"⚡ <i>Pʟᴇᴀꜱᴇ ᴡᴀɪᴛ ᴀ ᴍᴏᴍᴇɴᴛ...</i>",
+                    parse_mode="HTML",
+                )
+            except Exception:
+                pass
+        await asyncio.sleep(0.3)
+
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("👉 Oᴘᴇɴ Cʟᴏɴᴇᴅ Sᴛɪᴄᴋᴇʀ Pᴀᴄᴋ", url=f"https://t.me/addstickers/{pack_name}")]
+    ])
+    await wait_msg.edit_text(
+        f"🎉 <b>Sᴛɪᴄᴋᴇʀ Pᴀᴄᴋ Cʟᴏɴᴇᴅ Sᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ!</b>\n\n"
+        f"📦 <b>Tɪᴛʟᴇ:</b> {html_lib.escape(pack_title)}\n"
+        f"🔢 <b>Tᴏᴛᴀʟ Sᴛɪᴄᴋᴇʀꜱ:</b> <code>{copied_count}</code> / <code>{total}</code>\n"
+        f"🎨 <b>Fᴏʀᴍᴀᴛ:</b> {type_label}\n"
+        f"⚡ <b>Iᴛ Mᴀʏ Tᴀᴋᴇ 1-2 Mɪɴᴜᴛᴇꜱ Tᴏ Rᴇꜰʟᴇᴄᴛ Oɴ Tᴇʟᴇɢʀᴀᴍ.</b>",
+        parse_mode="HTML",
+        reply_markup=kb,
+    )
+
+
+async def del_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Delete a sticker from your Miko sticker pack."""
+    replied = update.message.reply_to_message if update.message else None
+    if not replied or not replied.sticker:
+        await update.message.reply_text(
+            "⚠️ <b>Rᴇᴘʟʏ Tᴏ A Sᴛɪᴄᴋᴇʀ Iɴ Yᴏᴜʀ Pᴀᴄᴋ Tᴏ Dᴇʟᴇᴛᴇ Iᴛ!</b>\n"
+            "👉 Uꜱᴀɢᴇ: Reply with <code>/delsticker</code> or <code>/del</code>",
+            parse_mode="HTML",
+        )
+        return
+
+    bot = context.bot
+    src_sticker = replied.sticker
+
+    try:
+        await bot.delete_sticker_from_set(sticker=src_sticker.file_id)
+        await update.message.reply_text(
+            "🗑️ <b>Sᴛɪᴄᴋᴇʀ Dᴇʟᴇᴛᴇᴅ Sᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ Fʀᴏᴍ Yᴏᴜʀ Pᴀᴄᴋ!</b>\n"
+            "⚡ <i>Iᴛ ᴍᴀʏ ᴛᴀᴋᴇ ᴀ ᴍᴏᴍᴇɴᴛ ᴛᴏ ᴜᴘᴅᴀᴛᴇ ᴏɴ Tᴇʟᴇɢʀᴀᴍ.</i>",
+            parse_mode="HTML",
+        )
+    except Exception as e:
+        err_msg = str(e).lower()
+        if "stickerset_invalid" in err_msg or "not part of" in err_msg or "forbidden" in err_msg:
+            await update.message.reply_text("❌ You can only delete stickers from packs created by Miko Bot.")
+        else:
+            await update.message.reply_text(f"❌ Failed to delete sticker: {e}")
+
+
+async def mypacks_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """List all user sticker packs created with Miko."""
+    user = update.effective_user
+    bot = context.bot
+    bot_info = await bot.get_me()
+    bot_username = bot_info.username
+
+    wait_msg = await update.message.reply_text("⏳ <i>Scanning your sticker packs...</i>", parse_mode="HTML")
+
+    found_packs = []
+    types = [
+        ("static", "Sᴛᴀᴛɪᴄ", f"static_{user.id}"),
+        ("anim", "Aɴɪᴍᴀᴛᴇᴅ", f"anim_{user.id}"),
+        ("vid", "Vɪᴅᴇᴏ", f"vid_{user.id}"),
+    ]
+
+    for type_code, type_lbl, suffix in types:
+        for v in range(1, 11):
+            v_str = f"_v{v}" if v > 1 else ""
+            p_name = f"miko_{suffix}{v_str}_by_{bot_username}"
+            try:
+                s_set = await bot.get_sticker_set(p_name)
+                if s_set:
+                    found_packs.append({
+                        "name": p_name,
+                        "title": s_set.title,
+                        "count": len(s_set.stickers),
+                        "type": type_lbl,
+                    })
+            except Exception:
+                if v > 1:
+                    break
+
+    if not found_packs:
+        await wait_msg.edit_text(
+            "📦 <b>Yᴏᴜ Hᴀᴠᴇ Nᴏ Sᴛɪᴄᴋᴇʀ Pᴀᴄᴋꜱ Yᴇᴛ!</b>\n\n"
+            "👉 Reply to any sticker or photo with <code>/kang</code> or <code>/own</code> to create your first pack!",
+            parse_mode="HTML",
+        )
+        return
+
+    text = "📦 <b>Yᴏᴜʀ Mɪᴋᴏ Sᴛɪᴄᴋᴇʀ Pᴀᴄᴋꜱ:</b>\n\n"
+    buttons = []
+    for idx, p in enumerate(found_packs, start=1):
+        text += f"{idx}. <b>{html_lib.escape(p['title'])}</b>\n   └ 🎨 <i>{p['type']}</i> • 🔢 <code>{p['count']} stickers</code>\n\n"
+        buttons.append([InlineKeyboardButton(f"👉 {p['title']} ({p['count']})", url=f"https://t.me/addstickers/{p['name']}")])
+
+    kb = InlineKeyboardMarkup(buttons)
+    await wait_msg.edit_text(text, parse_mode="HTML", reply_markup=kb)
+
+
+async def stok_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Convert static sticker into high-resolution PNG image."""
+    replied = update.message.reply_to_message if update.message else None
+    if not replied or not replied.sticker:
+        await update.message.reply_text("⚠️ <b>Rᴇᴘʟʏ Tᴏ A Sᴛɪᴄᴋᴇʀ Tᴏ Cᴏɴᴠᴇʀᴛ Iᴛ Tᴏ Iᴍᴀɢᴇ!</b>", parse_mode="HTML")
+        return
+
+    src_sticker = replied.sticker
+    if src_sticker.is_animated or src_sticker.is_video:
+        await update.message.reply_text("⚠️ Animated and video stickers cannot be converted to static images.")
+        return
+
+    wait_msg = await update.message.reply_text("⏳ <i>Converting sticker to PNG...</i>", parse_mode="HTML")
+    bot = context.bot
+
+    try:
+        tg_file = await bot.get_file(src_sticker.file_id)
+        buf = io.BytesIO()
+        await tg_file.download_to_memory(buf)
+        buf.seek(0)
+
+        im = Image.open(buf).convert("RGBA")
+        out_buf = io.BytesIO()
+        out_buf.name = "sticker.png"
+        im.save(out_buf, format="PNG")
+        out_buf.seek(0)
+
+        await wait_msg.delete()
+        await update.message.reply_document(
+            document=out_buf,
+            caption="🖼️ <b>Hᴇʀᴇ Iꜱ Yᴏᴜʀ Sᴛɪᴄᴋᴇʀ Aꜱ Pɴɢ Iᴍᴀɢᴇ!</b>",
+            parse_mode="HTML",
+        )
+    except Exception as e:
+        await wait_msg.edit_text(f"❌ Conversion failed: {e}")
+
+
+async def tosticker_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Convert photo or image document to standalone Telegram sticker."""
+    replied = update.message.reply_to_message if update.message else None
+    src_photo = replied.photo[-1] if (replied and replied.photo) else None
+    src_doc = (
+        replied.document
+        if (replied and replied.document and (
+            getattr(replied.document, "mime_type", "").startswith("image/") or
+            getattr(replied.document, "file_name", "").lower().endswith((".png", ".jpg", ".jpeg", ".webp"))
+        ))
+        else None
+    )
+
+    if not replied or (not src_photo and not src_doc):
+        await update.message.reply_text("⚠️ <b>Rᴇᴘʟʏ Tᴏ A Pʜᴏᴛᴏ Oʀ Iᴍᴀɢᴇ Tᴏ Cᴏɴᴠᴇʀᴛ Tᴏ Sᴛɪᴄᴋᴇʀ!</b>", parse_mode="HTML")
+        return
+
+    wait_msg = await update.message.reply_text("⏳ <i>Converting image to sticker...</i>", parse_mode="HTML")
+    bot = context.bot
+
+    try:
+        file_id = src_photo.file_id if src_photo else src_doc.file_id
+        tg_file = await bot.get_file(file_id)
+        buf = io.BytesIO()
+        await tg_file.download_to_memory(buf)
+        buf.seek(0)
+
+        st_buf = _convert_image_to_sticker_bytes(buf.getvalue())
+        im = Image.open(st_buf).convert("RGBA")
+        webp_buf = io.BytesIO()
+        webp_buf.name = "sticker.webp"
+        im.save(webp_buf, format="WEBP")
+        webp_buf.seek(0)
+
+        await wait_msg.delete()
+        await update.message.reply_sticker(sticker=webp_buf)
+    except Exception as e:
+        await wait_msg.edit_text(f"❌ Conversion failed: {e}")
+
+
+async def packinfo_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Inspect metadata and details of a sticker and its pack."""
+    replied = update.message.reply_to_message if update.message else None
+    if not replied or not replied.sticker:
+        await update.message.reply_text("⚠️ <b>Rᴇᴘʟʏ Tᴏ A Sᴛɪᴄᴋᴇʀ Tᴏ Vɪᴇᴡ Iᴛꜱ Pᴀᴄᴋ Iɴꜰᴏ!</b>", parse_mode="HTML")
+        return
+
+    src_sticker = replied.sticker
+    bot = context.bot
+
+    if not src_sticker.set_name:
+        await update.message.reply_text(
+            f"ℹ️ <b>Sᴛɪᴄᴋᴇʀ Iɴꜰᴏ:</b>\n\n"
+            f"🆔 <b>File ID:</b> <code>{src_sticker.file_id}</code>\n"
+            f"🎭 <b>Emoji:</b> {src_sticker.emoji or 'None'}\n"
+            f"📐 <b>Size:</b> {src_sticker.width}x{src_sticker.height}\n"
+            f"📦 <b>Pack:</b> Standalone sticker (No pack)",
+            parse_mode="HTML",
+        )
+        return
+
+    try:
+        s_set = await bot.get_sticker_set(src_sticker.set_name)
+        fmt = "Animated" if s_set.is_animated else ("Video" if s_set.is_video else "Static")
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("👉 Add This Sticker Pack", url=f"https://t.me/addstickers/{s_set.name}")]
+        ])
+        text = (
+            f"📦 <b>Sᴛɪᴄᴋᴇʀ Pᴀᴄᴋ Iɴꜰᴏ:</b>\n\n"
+            f"🏷️ <b>Title:</b> <b>{html_lib.escape(s_set.title)}</b>\n"
+            f"🔗 <b>Short Name:</b> <code>{s_set.name}</code>\n"
+            f"🎨 <b>Format:</b> {fmt}\n"
+            f"🔢 <b>Total Stickers:</b> <code>{len(s_set.stickers)}</code>\n"
+            f"🎭 <b>Sticker Emoji:</b> {src_sticker.emoji or '✨'}"
+        )
+        await update.message.reply_text(text, parse_mode="HTML", reply_markup=kb)
+    except Exception as e:
+        await update.message.reply_text(f"❌ Could not fetch pack info: {e}")
 
 
 async def open_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2049,6 +2433,21 @@ HANDLERS = {
     "setintro": setintro,
     "own": own,
     "kang": own,
+    "clone": clone_pack,
+    "copypack": clone_pack,
+    "copy": clone_pack,
+    "delsticker": del_sticker,
+    "del": del_sticker,
+    "mypacks": mypacks_cmd,
+    "packs": mypacks_cmd,
+    "packlist": mypacks_cmd,
+    "stok": stok_cmd,
+    "toimg": stok_cmd,
+    "topng": stok_cmd,
+    "tosticker": tosticker_cmd,
+    "towebp": tosticker_cmd,
+    "packinfo": packinfo_cmd,
+    "stickerinfo": packinfo_cmd,
     "open": open_cmd,
     "close": close_cmd,
     "help": help_cmd,
