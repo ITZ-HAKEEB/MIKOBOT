@@ -7,6 +7,7 @@ from modules.games.bluff_game import cmd_bluff, cmd_enter, cmd_startbluff, cmd_d
 from modules.games.roulette_game import cmd_roulette, cmd_join as cmd_roulette_join, cmd_bid
 from modules.games.card_game import cmd_card, cmd_bet, cmd_flip
 from modules.games.bomb_game import cmd_bomb, cmd_joinbomb, cmd_startbomb, cmd_pass, cmd_bombcancel, cmd_leaders, cmd_rank
+from modules.games.poker_game import cmd_poker, cmd_join_poker, cmd_pick_card, cmd_poker_rank
 
 
 async def ludo(update, context):
@@ -81,8 +82,9 @@ async def economy_menu(update, context):
     )
 
 
-# Unified join handler to support `/join` in Roulette and Bomb games
+# Unified join handler to support `/join` in Poker, Roulette and Bomb games
 async def cmd_unified_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from modules.games.poker_game import POKER_GAMES
     from modules.games.roulette_game import ROULETTE_GAMES
     from modules.games.bomb_game import BOMB_GAMES
 
@@ -91,18 +93,28 @@ async def cmd_unified_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     chat_id = chat.id
-    if chat_id in ROULETTE_GAMES:
+    if chat_id in POKER_GAMES:
+        await cmd_join_poker(update, context)
+    elif chat_id in ROULETTE_GAMES:
         await cmd_roulette_join(update, context)
     elif chat_id in BOMB_GAMES:
         await cmd_joinbomb(update, context)
     else:
-        await update.message.reply_text("⚠️ No active Roulette or Bomb game lobby to join.")
+        await update.message.reply_text("⚠️ No active Poker, Roulette or Bomb game lobby to join.")
 
 
 HANDLERS = {
     # Menu & Guides
     "game": game_menu,
     "economy": economy_menu,
+
+    # Poker Game
+    "poker": cmd_poker,
+    "pokerjoin": cmd_join_poker,
+    "joinpoker": cmd_join_poker,
+    "pick": cmd_pick_card,
+    "pokerrank": cmd_poker_rank,
+    "pokerlead": cmd_poker_rank,
 
     # Hack Game
     "hack": cmd_hack,

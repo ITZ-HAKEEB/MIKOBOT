@@ -340,6 +340,11 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await whisper_callback_handler(update, context)
         return
 
+    if data.startswith("poker_"):
+        from modules.games.poker_game import poker_callback_handler
+        await poker_callback_handler(update, context)
+        return
+
     if data.startswith("verify_join:"):
         caller = query.from_user
         parts = data.split(":")
