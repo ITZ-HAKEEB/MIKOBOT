@@ -309,49 +309,56 @@ async def successful_payment_callback(update: Update, context: ContextTypes.DEFA
         print(f"❌ [STARS] Error in successful_payment_callback: {e}")
 
 async def claim(update, context):
-    chat = update.effective_chat
-    if not chat or chat.type == "private":
-        await update.message.reply_text("🚫 Tʜɪꜱ Gʀᴏᴜᴘ Nᴇᴇᴅꜱ Aᴛ Lᴇᴀꜱᴛ 500 Mᴇᴍʙᴇʀꜱ Tᴏ Cʟᴀɪᴍ Rᴇᴡᴀʀᴅ.")
-        return
-
     try:
-        member_count = await context.bot.get_chat_member_count(chat.id)
-    except Exception:
-        member_count = 0
+        chat = update.effective_chat
+        if not chat or chat.type == "private":
+            await update.message.reply_text("🚫 Tʜɪꜱ Gʀᴏᴜᴘ Nᴇᴇᴅꜱ Aᴛ Lᴇᴀꜱᴛ 500 Mᴇᴍʙᴇʀꜱ Tᴏ Cʟᴀɪᴍ Rᴇᴡᴀʀᴅ.")
+            return
 
-    if member_count < 500:
-        await update.message.reply_text("🚫 Tʜɪꜱ Gʀᴏᴜᴘ Nᴇᴇᴅꜱ Aᴛ Lᴇᴀꜱᴛ 500 Mᴇᴍʙᴇʀꜱ Tᴏ Cʟᴀɪᴍ Rᴇᴡᴀʀᴅ.")
-        return
+        try:
+            member_count = await context.bot.get_chat_member_count(chat.id)
+        except Exception:
+            member_count = 0
 
-    gdata = get_group(chat.id)
-    today_str = datetime.now().strftime("%Y-%m-%d")
+        if member_count < 500:
+            await update.message.reply_text("🚫 Tʜɪꜱ Gʀᴏᴜᴘ Nᴇᴇᴅꜱ Aᴛ Lᴇᴀꜱᴛ 500 Mᴇᴍʙᴇʀꜱ Tᴏ Cʟᴀɪᴍ Rᴇᴡᴀʀᴅ.")
+            return
 
-    if gdata.get("last_claim_date") == today_str:
-        claimed_by = gdata.get("claimed_by_name") or "𓍯 𝗖ֹ︩︪𝗮𝗳𝗳𝗶𝗻."
-        await update.message.reply_text(
-            f"🚫 Tʜɪꜱ Gʀᴏᴜᴘ Rᴇᴡᴀʀᴅ Hᴀꜱ Aʟʀᴇᴀᴅʏ Bᴇᴇɴ Cʟᴀɪᴍᴇᴅ Bʏ: {claimed_by}"
+        gdata = get_group(chat.id)
+        today_str = datetime.now().strftime("%Y-%m-%d")
+
+        if gdata.get("last_claim_date") == today_str:
+            claimed_by = gdata.get("claimed_by_name") or "𓍯 𝗖ֹ︩︪𝗮𝗳𝗳𝗶𝗻."
+            await update.message.reply_text(
+                f"🚫 Tʜɪꜱ Gʀᴏᴜᴘ Rᴇᴡᴀʀᴅ Hᴀꜱ Aʟʀᴇᴀᴅʏ Bᴇᴇɴ Cʟᴀɪᴍᴇᴅ Bʏ: {claimed_by}"
+            )
+            return
+
+        user = update.effective_user
+        ud = get_user(user.id, user.username or user.first_name or "User", user.first_name)
+        claimer_name = ud.get("display_name") or (user.first_name or user.username or "User")
+
+        reward = 300
+        new_bal = ud.get("balance", 0) + reward
+        update_user(user.id, balance=new_bal)
+        update_group(
+            chat.id,
+            last_claim_date=today_str,
+            claimed_by_name=claimer_name,
+            claimed_by_id=user.id,
         )
-        return
 
-    user = update.effective_user
-    ud = get_user(user.id, user.username or user.first_name or "User", user.first_name)
-    claimer_name = ud.get("display_name") or (user.first_name or user.username or "User")
-
-    reward = 300
-    new_bal = ud["balance"] + reward
-    update_user(user.id, balance=new_bal)
-    update_group(
-        chat.id,
-        last_claim_date=today_str,
-        claimed_by_name=claimer_name,
-        claimed_by_id=user.id,
-    )
-
-    await update.message.reply_text(
-        f"🎉 Gʀᴏᴜᴘ Rᴇᴡᴀʀᴅ Cʟᴀɪᴍᴇᴅ Bʏ {claimer_name} ࿐\n\n"
-        f"💰 Rᴇᴡᴀʀᴅ Aᴅᴅᴇᴅ: ${reward}\n"
-        f"🏦 Nᴇᴡ Bᴀʟᴀɴᴄᴇ: ${new_bal}"
-    )
+        await update.message.reply_text(
+            f"🎉 Gʀᴏᴜᴘ Rᴇᴡᴀʀᴅ Cʟᴀɪᴍᴇᴅ Bʏ {claimer_name} ࿐\n\n"
+            f"💰 Rᴇᴡᴀʀᴅ Aᴅᴅᴇᴅ: ${reward}\n"
+            f"🏦 Nᴇᴡ Bᴀʟᴀɴᴄᴇ: ${new_bal}"
+        )
+    except Exception as e:
+        print(f"❌ Error in claim command: {e}")
+        try:
+            await update.message.reply_text(f"⚠️ An error occurred while processing claim: {e}")
+        except Exception:
+            pass
 
 
 COUPONS_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "coupons.json")

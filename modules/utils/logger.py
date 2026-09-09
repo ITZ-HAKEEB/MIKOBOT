@@ -10,12 +10,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-LOG_GROUP_ID = os.getenv("LOG_GROUP_ID", "-1005397585622")
+LOG_GROUP_ID = os.getenv("LOG_GROUP_ID", "-1004381844703")
 
 
 def get_log_group_id() -> Optional[int]:
     try:
-        return int(LOG_GROUP_ID)
+        val = os.getenv("LOG_GROUP_ID", LOG_GROUP_ID)
+        return int(val)
     except (ValueError, TypeError):
         return None
 

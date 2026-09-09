@@ -163,6 +163,24 @@ def get_user_chats() -> List[int]:
     return list(users_set)
 
 
+def _json_serial(obj: Any) -> Any:
+    """JSON serializer for objects not serializable by default json code (e.g. datetime, ObjectId)."""
+    if hasattr(obj, "isoformat"):
+        return obj.isoformat()
+    return str(obj)
+
+
+def _sanitize_doc(data: Any) -> Any:
+    """Recursively converts non-serializable objects (like datetime) into JSON-compatible types."""
+    if isinstance(data, dict):
+        return {k: _sanitize_doc(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [_sanitize_doc(v) for v in data]
+    elif hasattr(data, "isoformat"):
+        return data.isoformat()
+    return data
+
+
 # --- USER DATA DUAL LAYER ---
 
 def db_load_user(user_id: int) -> Optional[Dict[str, Any]]:
@@ -182,8 +200,9 @@ def db_load_user(user_id: int) -> Optional[Dict[str, Any]]:
             doc = _mongo_db.users.find_one({"_id": uid})
             if doc:
                 doc.pop("_id", None)
+                doc = _sanitize_doc(doc)
                 if _redis_client:
-                    _redis_client.set(f"miko:user:{uid}", json.dumps(doc))
+                    _redis_client.set(f"miko:user:{uid}", json.dumps(doc, default=_json_serial))
                     _redis_client.sadd("miko:users", uid)
                 return doc
         except Exception:
@@ -207,7 +226,8 @@ def _async_mongo_save_user(uid: str, doc: dict):
 
 def db_save_user(user_id: int, udata: Dict[str, Any]) -> None:
     uid = str(user_id)
-    serialized = json.dumps(udata)
+    udata = _sanitize_doc(udata)
+    serialized = json.dumps(udata, default=_json_serial)
 
     # 1. Primary: Save directly to Redis (instant in-memory write < 0.5ms)
     if _redis_client:
@@ -233,14 +253,16 @@ def warmup_redis_cache() -> None:
         for u in _mongo_db.users.find({}):
             uid = str(u.pop("_id", None))
             if uid:
-                pipe.set(f"miko:user:{uid}", json.dumps(u))
+                u = _sanitize_doc(u)
+                pipe.set(f"miko:user:{uid}", json.dumps(u, default=_json_serial))
                 pipe.sadd("miko:users", uid)
 
         # 2. Groups
         for g in _mongo_db.groups.find({}):
             gid = str(g.pop("_id", None))
             if gid:
-                pipe.set(f"miko:group:{gid}", json.dumps(g))
+                g = _sanitize_doc(g)
+                pipe.set(f"miko:group:{gid}", json.dumps(g, default=_json_serial))
                 pipe.sadd("miko:chats", gid)
 
         # 3. Chats
@@ -259,7 +281,8 @@ def warmup_redis_cache() -> None:
         for w in _mongo_db.whispers.find({}):
             wid = str(w.pop("_id", None))
             if wid:
-                pipe.set(f"miko:whisper:{wid}", json.dumps(w), ex=86400 * 7)
+                w = _sanitize_doc(w)
+                pipe.set(f"miko:whisper:{wid}", json.dumps(w, default=_json_serial), ex=86400 * 7)
 
         # 6. Sudoers
         for s in _mongo_db.sudoers.find({}):
@@ -297,9 +320,10 @@ def db_load_all_users() -> Dict[str, Dict[str, Any]]:
             for doc in _mongo_db.users.find({}):
                 uid = doc.pop("_id", None)
                 if uid:
+                    doc = _sanitize_doc(doc)
                     res[str(uid)] = doc
                     if _redis_client:
-                        _redis_client.set(f"miko:user:{uid}", json.dumps(doc))
+                        _redis_client.set(f"miko:user:{uid}", json.dumps(doc, default=_json_serial))
                         _redis_client.sadd("miko:users", str(uid))
         except Exception:
             pass
@@ -313,65 +337,95 @@ DEFAULT_SUDOERS = {7408854697, 6605051662, 5971488185, 7810795240}
 
 def get_owner_id() -> int:
     env_owner = os.getenv("OWNER_ID")
-    if env_owner and env_owner.isdigit():
-        return int(env_owner)
+    if env_owner:
+        try:
+            return int(env_owner)
+        except ValueError:
+            pass
     return 7408854697
 
 
-def add_sudo_user(user_id: int) -> None:
-    uid = str(user_id)
-    if _redis_client:
-        try:
-            _redis_client.sadd("miko:sudoers", uid)
-        except Exception:
-            pass
-    if _mongo_db is not None:
-        try:
-            _mongo_db.sudoers.update_one({"user_id": uid}, {"$set": {"user_id": uid}}, upsert=True)
-        except Exception:
-            pass
+def get_all_sudoers() -> Set[int]:
+    sudoers = set(DEFAULT_SUDOERS)
+    sudoers.add(get_owner_id())
 
-
-def rm_sudo_user(user_id: int) -> None:
-    uid = str(user_id)
-    if _redis_client:
-        try:
-            _redis_client.srem("miko:sudoers", uid)
-        except Exception:
-            pass
-    if _mongo_db is not None:
-        try:
-            _mongo_db.sudoers.delete_one({"user_id": uid})
-        except Exception:
-            pass
-
-
-def get_sudo_users() -> List[int]:
-    sudos: Set[int] = set(DEFAULT_SUDOERS)
-    sudos.add(get_owner_id())
+    # 1. Primary: Try Redis
     if _redis_client:
         try:
             members = _redis_client.smembers("miko:sudoers")
-            for m in members:
-                sudos.add(int(m))
+            if members:
+                for m in members:
+                    try:
+                        sudoers.add(int(m))
+                    except ValueError:
+                        pass
+                return sudoers
+        except Exception:
+            pass
+
+    # 2. Backup Fallback: Try Mongo
+    if _mongo_db is not None:
+        try:
+            docs = _mongo_db.sudoers.find({})
+            for d in docs:
+                uid = d.get("user_id") or d.get("_id")
+                if uid:
+                    try:
+                        sudoers.add(int(uid))
+                        if _redis_client:
+                            _redis_client.sadd("miko:sudoers", str(uid))
+                    except ValueError:
+                        pass
+        except Exception:
+            pass
+
+    return sudoers
+
+
+def add_sudoer_to_db(user_id: int) -> None:
+    DEFAULT_SUDOERS.add(user_id)
+    suid = str(user_id)
+    if _redis_client:
+        try:
+            _redis_client.sadd("miko:sudoers", suid)
         except Exception:
             pass
     if _mongo_db is not None:
         try:
-            docs = _mongo_db.sudoers.find({}, {"user_id": 1})
-            for doc in docs:
-                uid = doc.get("user_id")
-                if uid:
-                    sudos.add(int(uid))
+            _mongo_db.sudoers.update_one({"_id": suid}, {"$set": {"user_id": user_id}}, upsert=True)
         except Exception:
             pass
-    return list(sudos)
 
 
-def is_sudo_user(user_id: int) -> bool:
-    if user_id == get_owner_id() or user_id in DEFAULT_SUDOERS:
-        return True
-    return user_id in get_sudo_users()
+def remove_sudoer_from_db(user_id: int) -> None:
+    if user_id in DEFAULT_SUDOERS:
+        DEFAULT_SUDOERS.remove(user_id)
+    suid = str(user_id)
+    if _redis_client:
+        try:
+            _redis_client.srem("miko:sudoers", suid)
+        except Exception:
+            pass
+    if _mongo_db is not None:
+        try:
+            _mongo_db.sudoers.delete_one({"_id": suid})
+        except Exception:
+            pass
+
+
+def is_user_sudoer(user_id: int) -> bool:
+    return user_id in get_all_sudoers()
+
+
+add_sudo_user = add_sudoer_to_db
+rm_sudo_user = remove_sudoer_from_db
+
+
+def get_sudo_users() -> List[int]:
+    return list(get_all_sudoers())
+
+
+is_sudo_user = is_user_sudoer
 
 
 # --- GROUP SETTINGS DUAL LAYER ---
@@ -392,8 +446,9 @@ def db_load_group(chat_id: int) -> Optional[Dict[str, Any]]:
             doc = _mongo_db.groups.find_one({"_id": cid})
             if doc:
                 doc.pop("_id", None)
+                doc = _sanitize_doc(doc)
                 if _redis_client:
-                    _redis_client.set(f"miko:group:{cid}", json.dumps(doc))
+                    _redis_client.set(f"miko:group:{cid}", json.dumps(doc, default=_json_serial))
                     _redis_client.sadd("miko:chats", cid)
                 return doc
         except Exception:
@@ -411,7 +466,8 @@ def _async_mongo_save_group(cid: str, doc: dict):
 
 def db_save_group(chat_id: int, gdata: Dict[str, Any]) -> None:
     cid = str(chat_id)
-    serialized = json.dumps(gdata)
+    gdata = _sanitize_doc(gdata)
+    serialized = json.dumps(gdata, default=_json_serial)
     # 1. Primary: Save directly to Redis (< 0.5ms)
     if _redis_client:
         try:
@@ -422,5 +478,3 @@ def db_save_group(chat_id: int, gdata: Dict[str, Any]) -> None:
     # 2. Backup: Save to Mongo in background
     doc = dict(gdata)
     _db_pool.submit(_async_mongo_save_group, cid, doc)
-
-

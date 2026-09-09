@@ -32,7 +32,7 @@
     },
     "LOG_GROUP_ID": {
       "description": "Log Group / Channel ID for bot logs",
-      "value": "-1005397585622",
+      "value": "-1004381844703",
       "required": false
     }
   },

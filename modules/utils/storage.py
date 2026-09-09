@@ -140,18 +140,6 @@ POWERS_CATALOG: Dict[str, Dict[str, Any]] = {
 }
 
 
-def _migrate(data: Dict[str, Any]) -> Dict[str, Any]:
-    changed = False
-    for uid, info in data.items():
-        for k, v in DEFAULT_USER.items():
-            if k not in info:
-                info[k] = v if not isinstance(v, (dict, list)) else type(v)()
-                changed = True
-    if changed:
-        save_data(data)
-    return data
-
-
 from modules.utils.db import (
     db_load_user,
     db_save_user,
@@ -164,7 +152,23 @@ from modules.utils.db import (
     add_user_chat,
     rm_user_chat,
     get_user_chats,
+    _json_serial,
+    _sanitize_doc,
 )
+
+
+def _migrate(data: Dict[str, Any]) -> Dict[str, Any]:
+    changed = False
+    for uid, info in list(data.items()):
+        info = _sanitize_doc(info)
+        data[uid] = info
+        for k, v in DEFAULT_USER.items():
+            if k not in info:
+                info[k] = v if not isinstance(v, (dict, list)) else type(v)()
+                changed = True
+    if changed:
+        save_data(data)
+    return data
 
 
 # In-memory fast cache for instant sub-millisecond lookups
@@ -202,7 +206,7 @@ def save_data(data: Dict[str, Any]) -> None:
     _MEM_CACHE = data
     try:
         with open(DATA_FILE, "w") as f:
-            json.dump(data, f, indent=2)
+            json.dump(data, f, indent=2, default=_json_serial)
     except Exception:
         pass
 
@@ -254,6 +258,7 @@ def get_user(user_id: int, username: str = "User", display_name: Optional[str] =
         if k not in user_doc:
             user_doc[k] = v if not isinstance(v, (dict, list)) else type(v)()
 
+    user_doc = _sanitize_doc(user_doc)
     return user_doc
 
 
@@ -262,6 +267,7 @@ def update_user(user_id: int, **kwargs) -> Optional[Dict[str, Any]]:
     user_doc = get_user(user_id)
     for k, v in kwargs.items():
         user_doc[k] = v
+    user_doc = _sanitize_doc(user_doc)
     _MEM_CACHE[uid] = user_doc
     # Fast instant write to Redis + background sync to Mongo
     db_save_user(user_id, user_doc)
@@ -304,8 +310,11 @@ def load_group_settings() -> Dict[str, Any]:
 
 
 def save_group_settings(data: Dict[str, Any]) -> None:
-    with open(GROUP_SETTINGS_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    try:
+        with open(GROUP_SETTINGS_FILE, "w") as f:
+            json.dump(data, f, indent=2, default=_json_serial)
+    except Exception:
+        pass
 
 
 def get_group(chat_id: int) -> Dict[str, Any]:
@@ -331,6 +340,7 @@ def update_group(chat_id: int, **kwargs) -> Dict[str, Any]:
         settings[cid].update(db_data)
     for k, v in kwargs.items():
         settings[cid][k] = v
+    settings[cid] = _sanitize_doc(settings[cid])
     save_group_settings(settings)
     db_save_group(chat_id, settings[cid])
     return settings[cid]
@@ -355,7 +365,7 @@ def get_featured_groups() -> List[Dict[str, Any]]:
 def save_featured_groups(groups: List[Dict[str, Any]]) -> None:
     try:
         with open(FEATURED_GROUPS_FILE, "w") as f:
-            json.dump({"groups": groups}, f, indent=2)
+            json.dump({"groups": groups}, f, indent=2, default=_json_serial)
     except Exception:
         pass
 
