@@ -4,7 +4,6 @@
   "repository": "https://github.com/nishkarshk212/Miko",
   "logo": "https://telegra.ph/file/0c9a75908b8b0e7747e92.jpg",
   "keywords": ["telegram", "bot", "python", "economy", "games", "ai", "miko"],
-  "stack": "container",
   "env": {
     "BOT_TOKEN": {
       "description": "Your Telegram Bot Token from @BotFather",
