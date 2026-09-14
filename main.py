@@ -351,6 +351,11 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await word_quiz_callback_handler(update, context)
         return
 
+    if data.startswith("sg_"):
+        from modules.games.secret_game import secret_game_callback_handler
+        await secret_game_callback_handler(update, context)
+        return
+
     if data.startswith("verify_join:"):
         caller = query.from_user
         parts = data.split(":")
@@ -914,7 +919,12 @@ async def post_init(app):
 
 async def word_quiz_message_watcher(update: Update, context: ContextTypes.DEFAULT_TYPE):
     from modules.games.word_quiz import check_word_quiz_chat_message
-    await check_word_quiz_chat_message(update, context)
+    if await check_word_quiz_chat_message(update, context):
+        return
+
+    from modules.games.secret_game import check_secret_game_chat_message
+    if await check_secret_game_chat_message(update, context):
+        return
 
 
 def main():

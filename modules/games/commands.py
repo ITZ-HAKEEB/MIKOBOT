@@ -16,6 +16,14 @@ from modules.games.word_quiz import (
     cmd_quiz_stop,
     cmd_word_rank,
 )
+from modules.games.secret_game import (
+    cmd_secret,
+    cmd_describe,
+    cmd_secret_hint,
+    cmd_secret_pass,
+    cmd_secret_stop,
+    cmd_secret_rank,
+)
 
 
 async def ludo(update, context):
@@ -111,9 +119,10 @@ async def cmd_unified_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ No active Poker, Roulette or Bomb game lobby to join.")
 
 
-# Unified guess handler to support `/guess` in Word Quiz and Hack games
+# Unified guess handler to support `/guess` in Word Quiz, Secret Game, and Hack games
 async def cmd_unified_guess(update: Update, context: ContextTypes.DEFAULT_TYPE):
     from modules.games.word_quiz import WORD_QUIZ_GAMES
+    from modules.games.secret_game import SECRET_GAMES, check_secret_game_chat_message
     from modules.games.hack_game import HACK_GAMES
 
     chat = update.effective_chat
@@ -123,17 +132,32 @@ async def cmd_unified_guess(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = chat.id
     if chat_id in WORD_QUIZ_GAMES:
         await cmd_quiz_guess(update, context)
+    elif chat_id in SECRET_GAMES:
+        # Check guess for secret game
+        await check_secret_game_chat_message(update, context)
     elif chat_id in HACK_GAMES:
         from modules.games.hack_game import cmd_guess as cmd_hack_guess
         await cmd_hack_guess(update, context)
     else:
-        await update.message.reply_text("⚠️ No active Word Quiz or Hack game in this chat!")
+        await update.message.reply_text("⚠️ No active Word Quiz, Secret Game, or Hack game in this chat!")
 
 
 HANDLERS = {
     # Menu & Guides
     "game": game_menu,
     "economy": economy_menu,
+
+    # Secret Word Leader Game
+    "secret": cmd_secret,
+    "secretword": cmd_secret,
+    "secretgame": cmd_secret,
+    "describe": cmd_describe,
+    "clue": cmd_describe,
+    "sethint": cmd_describe,
+    "secrethint": cmd_secret_hint,
+    "secretpass": cmd_secret_pass,
+    "secretstop": cmd_secret_stop,
+    "secretrank": cmd_secret_rank,
 
     # Word Quiz Game
     "wordquiz": cmd_word_quiz,
