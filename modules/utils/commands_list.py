@@ -40,6 +40,7 @@ BOT_COMMANDS = [
     BotCommand("stok", "Convert Sticker To PNG Image"),
     BotCommand("tosticker", "Convert Photo To Standalone Sticker"),
     BotCommand("packinfo", "View Sticker & Pack Details"),
+    BotCommand("chatbot", "Toggle AI Chatbot in group (/chatbot on/off)"),
     BotCommand("help", "Show Admin Commands"),
     BotCommand("intro", "Check Your/Other's Intro"),
     BotCommand("setintro", "Set Your Intro Text"),

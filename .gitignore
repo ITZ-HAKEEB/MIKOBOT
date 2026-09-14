@@ -13,3 +13,4 @@ env/
 venv/
 .venv/
 website/
+.DS_Store

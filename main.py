@@ -39,7 +39,7 @@ from modules.premium.commands import (
     send_stars_invoice,
 )
 from modules.management.commands import MANAGEMENT_COMMANDS, handle_prefix_command
-from modules.ai.chatbot import dm_chatbot_handler
+from modules.ai.chatbot import chatbot_handler, dm_chatbot_handler, cmd_chatbot
 from modules.social.whisper import inline_whisper_handler, whisper_callback_handler
 
 
@@ -329,6 +329,7 @@ def _collect_handlers():
     all_handlers.update(PLACEHOLDER_HANDLERS)
     all_handlers["pfp"] = pfp
     all_handlers["profile"] = pfp
+    all_handlers["chatbot"] = cmd_chatbot
     return all_handlers
 
 
@@ -934,7 +935,7 @@ def main():
     app.add_handler(ChatJoinRequestHandler(handle_chat_join_request))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_members))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_prefix_command), group=1)
-    app.add_handler(MessageHandler(filters.ChatType.PRIVATE & (filters.TEXT | filters.Sticker.ALL) & ~filters.COMMAND, dm_chatbot_handler), group=2)
+    app.add_handler(MessageHandler((filters.TEXT | filters.Sticker.ALL) & ~filters.COMMAND, chatbot_handler), group=2)
     app.add_handler(InlineQueryHandler(inline_whisper_handler))
     app.add_handler(CallbackQueryHandler(callback_handler))
 
