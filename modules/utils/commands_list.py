@@ -94,6 +94,8 @@ BOT_COMMANDS = [
     BotCommand("bomb", "Play Bomb Game"),
     BotCommand("bluff", "Start The Bluff Game"),
     BotCommand("card", "Play Card Game"),
+    BotCommand("wordquiz", "Play Word Quiz Game (/wordquiz)"),
+    BotCommand("wordrank", "Top Word Quiz Leaders (/wordrank)"),
     BotCommand("hack", "Play The Hackers Game"),
     BotCommand("create_coupon", "Create coupon code for your group"),
     BotCommand("coupon", "Claim coupon in this group"),

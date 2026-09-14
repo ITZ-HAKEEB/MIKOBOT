@@ -346,6 +346,11 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await poker_callback_handler(update, context)
         return
 
+    if data.startswith("wquiz_"):
+        from modules.games.word_quiz import word_quiz_callback_handler
+        await word_quiz_callback_handler(update, context)
+        return
+
     if data.startswith("verify_join:"):
         caller = query.from_user
         parts = data.split(":")
@@ -907,6 +912,11 @@ async def post_init(app):
         print(f"Startup log error: {e}")
 
 
+async def word_quiz_message_watcher(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from modules.games.word_quiz import check_word_quiz_chat_message
+    await check_word_quiz_chat_message(update, context)
+
+
 def main():
     if not BOT_TOKEN:
         print("❌ BOT_TOKEN ɴᴏᴛ ꜰᴏᴜɴᴅ! ᴘʟᴇᴀꜱᴇ ꜱᴇᴛ ɪᴛ ɪɴ .ᴇɴᴠ ꜰɪʟᴇ.")
@@ -935,6 +945,7 @@ def main():
     app.add_handler(ChatJoinRequestHandler(handle_chat_join_request))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_members))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_prefix_command), group=1)
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, word_quiz_message_watcher), group=1)
     app.add_handler(MessageHandler((filters.TEXT | filters.Sticker.ALL) & ~filters.COMMAND, chatbot_handler), group=2)
     app.add_handler(InlineQueryHandler(inline_whisper_handler))
     app.add_handler(CallbackQueryHandler(callback_handler))

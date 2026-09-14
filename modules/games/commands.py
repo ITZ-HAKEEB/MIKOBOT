@@ -8,6 +8,14 @@ from modules.games.roulette_game import cmd_roulette, cmd_join as cmd_roulette_j
 from modules.games.card_game import cmd_card, cmd_bet, cmd_flip
 from modules.games.bomb_game import cmd_bomb, cmd_joinbomb, cmd_startbomb, cmd_pass, cmd_bombcancel, cmd_leaders, cmd_rank
 from modules.games.poker_game import cmd_poker, cmd_join_poker, cmd_pick_card, cmd_poker_rank
+from modules.games.word_quiz import (
+    cmd_word_quiz,
+    cmd_quiz_guess,
+    cmd_quiz_hint,
+    cmd_quiz_skip,
+    cmd_quiz_stop,
+    cmd_word_rank,
+)
 
 
 async def ludo(update, context):
@@ -103,10 +111,44 @@ async def cmd_unified_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ No active Poker, Roulette or Bomb game lobby to join.")
 
 
+# Unified guess handler to support `/guess` in Word Quiz and Hack games
+async def cmd_unified_guess(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from modules.games.word_quiz import WORD_QUIZ_GAMES
+    from modules.games.hack_game import HACK_GAMES
+
+    chat = update.effective_chat
+    if not chat:
+        return
+
+    chat_id = chat.id
+    if chat_id in WORD_QUIZ_GAMES:
+        await cmd_quiz_guess(update, context)
+    elif chat_id in HACK_GAMES:
+        from modules.games.hack_game import cmd_guess as cmd_hack_guess
+        await cmd_hack_guess(update, context)
+    else:
+        await update.message.reply_text("⚠️ No active Word Quiz or Hack game in this chat!")
+
+
 HANDLERS = {
     # Menu & Guides
     "game": game_menu,
     "economy": economy_menu,
+
+    # Word Quiz Game
+    "wordquiz": cmd_word_quiz,
+    "quiz": cmd_word_quiz,
+    "word": cmd_word_quiz,
+    "w": cmd_quiz_guess,
+    "quizguess": cmd_quiz_guess,
+    "quizhint": cmd_quiz_hint,
+    "hint": cmd_quiz_hint,
+    "quizskip": cmd_quiz_skip,
+    "skip": cmd_quiz_skip,
+    "quizstop": cmd_quiz_stop,
+    "stopquiz": cmd_quiz_stop,
+    "wordrank": cmd_word_rank,
+    "quizrank": cmd_word_rank,
 
     # Poker Game
     "poker": cmd_poker,
@@ -119,7 +161,7 @@ HANDLERS = {
     # Hack Game
     "hack": cmd_hack,
     "register": cmd_register,
-    "guess": cmd_guess,
+    "guess": cmd_unified_guess,
     "end": cmd_end,
 
     # Bluff Game
