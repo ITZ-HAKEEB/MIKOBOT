@@ -8,7 +8,7 @@ load_dotenv()
 
 REDIS_URL = os.getenv(
     "REDIS_URL",
-    "rediss://:p98827a3f7f619e71f89933b124319976c83b7b5d99e28a15e01f48eea633a414@ec2-52-73-55-112.compute-1.amazonaws.com:32000",
+    "rediss://:pd5c00029f6c1c29ede4dd8c868cd594d149a84816fc103e47d7aa6c02ed24a23@ec2-184-193-54-112.compute-1.amazonaws.com:12950",
 )
 MONGO_URL = os.getenv(
     "MONGO_URL",
