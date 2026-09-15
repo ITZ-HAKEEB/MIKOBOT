@@ -179,6 +179,20 @@ def _set_user_task(user_id: int, chat_id: int, tdata: Dict[str, Any]) -> None:
             pass
 
 
+async def _get_bot_username(context: ContextTypes.DEFAULT_TYPE) -> str:
+    """Safely obtain the bot's username with fallback."""
+    if context.bot:
+        if getattr(context.bot, "username", None):
+            return context.bot.username
+        try:
+            me = await context.bot.get_me()
+            if me and me.username:
+                return me.username
+        except Exception:
+            pass
+    return "i_mikobot"
+
+
 # ─── sudoer / owner check ─────────────────────────────────────────────────────
 
 async def _is_owner_or_sudoer(user_id: int, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
@@ -304,8 +318,9 @@ async def cmd_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "4️⃣ Join <b>@titanic_network</b>\n\n"
             "✨ After completing all tasks, tap the button below!"
         )
+        bot_username = await _get_bot_username(context)
         kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🎟 Join Giveaway", url=f"https://t.me/{context.bot.username}?start=giveaway_{chat.id}")],
+            [InlineKeyboardButton("🎟 Join Giveaway", url=f"https://t.me/{bot_username}?start=giveaway_{chat.id}")],
         ])
         await msg.reply_text(text, reply_markup=kb, parse_mode="HTML")
         return
@@ -444,7 +459,8 @@ async def cmd_join_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await msg.reply_text("✅ You are already enrolled in the giveaway!", parse_mode="HTML")
             return
 
-        bot_link = f"https://t.me/{context.bot.username}?start=giveaway_{group_chat_id}"
+        bot_username = await _get_bot_username(context)
+        bot_link = f"https://t.me/{bot_username}?start=giveaway_{group_chat_id}"
         await msg.reply_text(
             "🎟 <b>Join Giveaway</b>\n\n"
             "Click below to verify your tasks in private and get enrolled!\n\n"
