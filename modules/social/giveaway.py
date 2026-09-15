@@ -405,7 +405,7 @@ async def cmd_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
     gdata = _get_giveaway(chat.id)
     if not gdata:
         await msg.reply_text(
-            "ℹ️ No active giveaway.\n\nUse /giveaway create <prize> to start one!",
+            "ℹ️ No active giveaway.\n\nUse <code>/giveaway create &lt;prize&gt;</code> to start one!",
             parse_mode="HTML",
         )
         return
