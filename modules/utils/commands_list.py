@@ -120,4 +120,5 @@ BOT_COMMANDS = [
     BotCommand("giveaway", "Manage giveaway (owner/admin only)"),
     BotCommand("gjoin", "Join the active giveaway (complete tasks first)"),
     BotCommand("gcheck", "Re-verify your giveaway tasks in DM"),
+    BotCommand("gwgroup", "Verify 1000+ member group with bot admins"),
 ]

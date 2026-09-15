@@ -45,7 +45,9 @@ from modules.social.giveaway import (
     cmd_giveaway,
     cmd_join_giveaway,
     cmd_gcheck,
+    cmd_gwgroup,
     giveaway_callback_handler,
+    start_giveaway_monitor,
 )
 
 
@@ -341,6 +343,8 @@ def _collect_handlers():
     all_handlers["gjoin"] = cmd_join_giveaway
     all_handlers["join_giveaway"] = cmd_join_giveaway
     all_handlers["gcheck"] = cmd_gcheck
+    all_handlers["gwgroup"] = cmd_gwgroup
+    all_handlers["verifygroup"] = cmd_gwgroup
 
     # /start with giveaway deeplink support
     async def _start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -956,6 +960,12 @@ async def post_init(app):
         asyncio.create_task(start_protection_monitor(app.bot))
     except Exception as me:
         print(f"⚠️ Protection monitor startup error: {me}")
+
+    # Start background 7-day giveaway expiration monitor
+    try:
+        asyncio.create_task(start_giveaway_monitor(app.bot))
+    except Exception as gme:
+        print(f"⚠️ Giveaway monitor startup error: {gme}")
 
     # Start background payment API server
     try:
