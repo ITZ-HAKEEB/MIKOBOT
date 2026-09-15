@@ -117,4 +117,7 @@ BOT_COMMANDS = [
     BotCommand("pass", "Pass the bomb in Bomb game"),
     BotCommand("bombcancel", "Cancel active Bomb game"),
     BotCommand("ping", "Check bot latency and system status"),
+    BotCommand("giveaway", "Manage giveaway (owner/admin only)"),
+    BotCommand("gjoin", "Join the active giveaway (complete tasks first)"),
+    BotCommand("gcheck", "Re-verify your giveaway tasks in DM"),
 ]

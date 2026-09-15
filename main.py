@@ -41,6 +41,12 @@ from modules.premium.commands import (
 from modules.management.commands import MANAGEMENT_COMMANDS, handle_prefix_command
 from modules.ai.chatbot import chatbot_handler, dm_chatbot_handler, cmd_chatbot
 from modules.social.whisper import inline_whisper_handler, whisper_callback_handler
+from modules.social.giveaway import (
+    cmd_giveaway,
+    cmd_join_giveaway,
+    cmd_gcheck,
+    giveaway_callback_handler,
+)
 
 
 async def pfp(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -330,6 +336,68 @@ def _collect_handlers():
     all_handlers["pfp"] = pfp
     all_handlers["profile"] = pfp
     all_handlers["chatbot"] = cmd_chatbot
+    # Giveaway commands
+    all_handlers["giveaway"] = cmd_giveaway
+    all_handlers["gjoin"] = cmd_join_giveaway
+    all_handlers["join_giveaway"] = cmd_join_giveaway
+    all_handlers["gcheck"] = cmd_gcheck
+
+    # /start with giveaway deeplink support
+    async def _start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        args = context.args or []
+        if args and args[0].startswith("giveaway_"):
+            await cmd_join_giveaway(update, context)
+            return
+        # Default: treat as verify_join flow (existing DM welcome logic)
+        chat = update.effective_chat
+        user = update.effective_user
+        if not user or not chat:
+            return
+        if chat.type == "private":
+            from modules.utils.storage import get_user as _gu, global_rank
+            ud = _gu(user.id, user.username or "User", user.first_name or "User")
+            toprich_rank = global_rank(user.id, "balance")
+            stats_block = (
+                "<blockquote>"
+                "<b>📊 ʏᴏᴜʀ ꜱᴛᴀᴛꜱ:</b>\n"
+                f"<b>💰 ʙᴀʟᴀɴᴄᴇ:</b> {ud['balance']}\n"
+                f"<b>🏆 ʀᴀɴᴋ:</b> {toprich_rank}\n"
+                f"<b>💎 ɢᴇᴍꜱ:</b> {ud['gems']:.2f}\n"
+                f"<b>🔪 ᴋɪʟʟꜱ:</b> {ud['kills']}"
+                "</blockquote>"
+            )
+            mini_app_url = f"https://mike-payment.vercel.app/app.html?user_id={user.id}"
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🌐 ᴏᴘᴇɴ ᴍɪᴋᴏ ᴡᴇʙ ᴀᴘᴘ", web_app=WebAppInfo(url=mini_app_url))],
+                [InlineKeyboardButton("🍀 ᴍɪᴋᴏ ꜰᴇᴀᴛᴜʀᴇꜱ", callback_data="miko_features")],
+                [
+                    InlineKeyboardButton("👥 ɢʀᴏᴜᴘꜱ", callback_data="groups"),
+                    InlineKeyboardButton("🐻 ᴘʀᴏᴍᴏᴛᴇʀ", url="https://t.me/advaydev"),
+                ],
+                [
+                    InlineKeyboardButton("📢 ᴜᴘᴅᴀᴛᴇꜱ", url="https://t.me/i_mikoo"),
+                    InlineKeyboardButton("🎮 ɢᴀᴍᴇꜱ", callback_data="games"),
+                ],
+                [
+                    InlineKeyboardButton("➕ ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ", url="https://t.me/i_mikobot?startgroup=true"),
+                ],
+            ])
+            user_mention = f'<a href="tg://user?id={user.id}">{user.first_name or user.username or "User"}</a>'
+            text = (
+                f"💙 ʜɪᴇᴇᴇᴇᴇᴇᴇ {user_mention} ɪ'ᴍ ᴍɪᴋᴏ - ᴀ ɢᴀᴍɪɴɢ ᴀɴᴅ ᴄʜᴀᴛᴛɪɴɢ ɢɪʀʟ ʜᴀᴠɪɴɢ ʟᴏᴛꜱ ᴏꜰ ꜰᴇᴀᴛᴜʀᴇꜱ ᴛᴏ ᴇɴɢᴀɢᴇ ʏᴏᴜʀ ɢʀᴏᴜᴘ.\n"
+                f"{stats_block}\n"
+                f"<b>🕹️ ʜᴏᴡ ᴛᴏ ᴘʟᴀʏ?</b>\n"
+                f"💰 /bal - ᴄʜᴇᴄᴋ ʏᴏᴜʀ ꜱᴛᴀᴛꜱ\n"
+                f"👤 /pfp - ᴄʜᴇᴄᴋ ʏᴏᴜʀ ᴘꜰᴘ\n"
+                f"🎁 /daily - ɢᴇᴛ ꜰʀᴇᴇ ᴄᴏɪɴꜱ\n"
+                f"🛡️ /protect - ꜱᴀᴠᴇ ʏᴏᴜʀꜱᴇʟꜰ\n"
+                f"⚔️ /kill &amp; /rob - ʟᴏᴏᴛ ᴏᴛʜᴇʀꜱ\n\n"
+                f"👇 ᴄʜᴏᴏꜱᴇ ᴀɴ ᴏᴘᴛɪᴏɴ ʙᴇʟᴏᴡ :"
+            )
+            if update.message:
+                await update.message.reply_text(text, reply_markup=keyboard, parse_mode="HTML")
+
+    all_handlers["start"] = _start_handler
     return all_handlers
 
 
@@ -354,6 +422,10 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data.startswith("sg_"):
         from modules.games.secret_game import secret_game_callback_handler
         await secret_game_callback_handler(update, context)
+        return
+
+    if data.startswith("gw_"):
+        await giveaway_callback_handler(update, context)
         return
 
     if data.startswith("verify_join:"):
