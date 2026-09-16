@@ -41,16 +41,6 @@ from modules.premium.commands import (
 from modules.management.commands import MANAGEMENT_COMMANDS, handle_prefix_command
 from modules.ai.chatbot import chatbot_handler, dm_chatbot_handler, cmd_chatbot
 from modules.social.whisper import inline_whisper_handler, whisper_callback_handler
-from modules.social.giveaway import (
-    cmd_giveaway,
-    cmd_join_giveaway,
-    cmd_gcheck,
-    cmd_gwgroup,
-    giveaway_callback_handler,
-    start_giveaway_monitor,
-    handle_bot_added_to_group,
-    handle_music_bot_status_updated,
-)
 
 
 async def pfp(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -205,16 +195,7 @@ async def welcome_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE
                 await update.message.reply_text(bot_add_msg, parse_mode="HTML")
             except Exception:
                 pass
-            try:
-                await handle_bot_added_to_group(context.bot, chat, adder, "member", "left")
-            except Exception as e:
-                logger.error(f"Error in handle_bot_added_to_group from welcome_new_members: {e}")
             return
-        elif member.is_bot and member.username and member.username.lower() in ("noahsongbot", "lilyy_music_bot"):
-            try:
-                await handle_music_bot_status_updated(context.bot, chat, member, "member")
-            except Exception as e:
-                logger.error(f"Error in handle_music_bot_status_updated from welcome_new_members: {e}")
 
         await _send_verify_prompt(context.bot, chat, member)
 
@@ -229,13 +210,6 @@ async def on_chat_member_updated(update: Update, context: ContextTypes.DEFAULT_T
 
     old_status = result.old_chat_member.status
     new_status = result.new_chat_member.status
-
-    target_user = result.new_chat_member.user
-    if target_user and target_user.is_bot:
-        try:
-            await handle_music_bot_status_updated(context.bot, chat, target_user, new_status)
-        except Exception as e:
-            logger.error(f"Error in handle_music_bot_status_updated from on_chat_member_updated: {e}")
 
     was_member = old_status in ("member", "administrator", "creator", "restricted") and getattr(result.old_chat_member, "is_member", True)
     is_member = new_status in ("member", "administrator", "restricted") and getattr(result.new_chat_member, "is_member", True)
@@ -254,14 +228,6 @@ async def on_my_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     if not chat or chat.type == "private":
         return
-
-    adder = result.from_user
-    # Auto-verify giveaway tasks (member count >= 1000, bot admins, credits adder, sends group report)
-    if new_status in ("member", "administrator"):
-        try:
-            await handle_bot_added_to_group(context.bot, chat, adder, new_status, old_status)
-        except Exception as e:
-            logger.error(f"Error in handle_bot_added_to_group from on_my_chat_member: {e}")
 
     # Check if bot was newly added to group (welcome message)
     if old_status not in ("member", "administrator") and new_status in ("member", "administrator"):
@@ -363,24 +329,8 @@ def _collect_handlers():
     all_handlers["pfp"] = pfp
     all_handlers["profile"] = pfp
     all_handlers["chatbot"] = cmd_chatbot
-    # Giveaway commands
-    all_handlers["giveaway"] = cmd_giveaway
-    all_handlers["gjoin"] = cmd_join_giveaway
-    all_handlers["join_giveaway"] = cmd_join_giveaway
-    all_handlers["gcheck"] = cmd_gcheck
-    all_handlers["gwgroup"] = cmd_gwgroup
-    all_handlers["verifygroup"] = cmd_gwgroup
-    all_handlers["joingiveaway"] = cmd_join_giveaway
-
-    # /start with giveaway deeplink support
+    # /start handler
     async def _start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        args = context.args or []
-        if args and (args[0].startswith("giveaway_") or args[0] == "giveaway"):
-            await cmd_join_giveaway(update, context)
-            return
-        if args and args[0] == "gwgroup":
-            await cmd_gwgroup(update, context)
-            return
         # Default: treat as verify_join flow (existing DM welcome logic)
         chat = update.effective_chat
         user = update.effective_user
@@ -402,10 +352,7 @@ def _collect_handlers():
             mini_app_url = f"https://mike-payment.vercel.app/app.html?user_id={user.id}"
             keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton("🌐 ᴏᴘᴇɴ ᴍɪᴋᴏ ᴡᴇʙ ᴀᴘᴘ", web_app=WebAppInfo(url=mini_app_url))],
-                [
-                    InlineKeyboardButton("🎟 ᴊᴏɪɴ ɢɪᴠᴇᴀᴡᴀʏ", callback_data=f"gw_open:{user.id}:global"),
-                    InlineKeyboardButton("🍀 ᴍɪᴋᴏ ꜰᴇᴀᴛᴜʀᴇꜱ", callback_data="miko_features"),
-                ],
+                [InlineKeyboardButton("🍀 ᴍɪᴋᴏ ꜰᴇᴀᴛᴜʀᴇꜱ", callback_data="miko_features")],
                 [
                     InlineKeyboardButton("👥 ɢʀᴏᴜᴘꜱ", callback_data="groups"),
                     InlineKeyboardButton("🐻 ᴘʀᴏᴍᴏᴛᴇʀ", url="https://t.me/advaydev"),
@@ -460,9 +407,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await secret_game_callback_handler(update, context)
         return
 
-    if data.startswith("gw_"):
-        await giveaway_callback_handler(update, context)
-        return
 
     if data.startswith("verify_join:"):
         caller = query.from_user
@@ -993,11 +937,6 @@ async def post_init(app):
     except Exception as me:
         print(f"⚠️ Protection monitor startup error: {me}")
 
-    # Start background 7-day giveaway expiration monitor
-    try:
-        asyncio.create_task(start_giveaway_monitor(app.bot))
-    except Exception as gme:
-        print(f"⚠️ Giveaway monitor startup error: {gme}")
 
     # Start background payment API server
     try:
