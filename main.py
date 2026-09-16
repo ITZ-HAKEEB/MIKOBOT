@@ -345,12 +345,16 @@ def _collect_handlers():
     all_handlers["gcheck"] = cmd_gcheck
     all_handlers["gwgroup"] = cmd_gwgroup
     all_handlers["verifygroup"] = cmd_gwgroup
+    all_handlers["joingiveaway"] = cmd_join_giveaway
 
     # /start with giveaway deeplink support
     async def _start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         args = context.args or []
-        if args and args[0].startswith("giveaway_"):
+        if args and (args[0].startswith("giveaway_") or args[0] == "giveaway"):
             await cmd_join_giveaway(update, context)
+            return
+        if args and args[0] == "gwgroup":
+            await cmd_gwgroup(update, context)
             return
         # Default: treat as verify_join flow (existing DM welcome logic)
         chat = update.effective_chat
@@ -373,7 +377,10 @@ def _collect_handlers():
             mini_app_url = f"https://mike-payment.vercel.app/app.html?user_id={user.id}"
             keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton("🌐 ᴏᴘᴇɴ ᴍɪᴋᴏ ᴡᴇʙ ᴀᴘᴘ", web_app=WebAppInfo(url=mini_app_url))],
-                [InlineKeyboardButton("🍀 ᴍɪᴋᴏ ꜰᴇᴀᴛᴜʀᴇꜱ", callback_data="miko_features")],
+                [
+                    InlineKeyboardButton("🎟 ᴊᴏɪɴ ɢɪᴠᴇᴀᴡᴀʏ", callback_data=f"gw_open:{user.id}:global"),
+                    InlineKeyboardButton("🍀 ᴍɪᴋᴏ ꜰᴇᴀᴛᴜʀᴇꜱ", callback_data="miko_features"),
+                ],
                 [
                     InlineKeyboardButton("👥 ɢʀᴏᴜᴘꜱ", callback_data="groups"),
                     InlineKeyboardButton("🐻 ᴘʀᴏᴍᴏᴛᴇʀ", url="https://t.me/advaydev"),

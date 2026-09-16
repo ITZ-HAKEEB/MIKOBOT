@@ -118,7 +118,8 @@ BOT_COMMANDS = [
     BotCommand("bombcancel", "Cancel active Bomb game"),
     BotCommand("ping", "Check bot latency and system status"),
     BotCommand("giveaway", "Manage giveaway (owner/admin only)"),
+    BotCommand("join_giveaway", "Open giveaway panel, verify tasks & join"),
     BotCommand("gjoin", "Join the active giveaway (complete tasks first)"),
-    BotCommand("gcheck", "Re-verify your giveaway tasks in DM"),
+    BotCommand("gcheck", "Re-verify your giveaway tasks"),
     BotCommand("gwgroup", "Verify 1000+ member group with bot admins"),
 ]
