@@ -15,14 +15,14 @@ Winner Selection:
 Tasks required to join:
   1. Add @i_mikobot to a group with 1000+ members (and make bot Admin)
   2. Add @noahsongbot to a group with 1000+ members (and make bot Admin)
-  3. Add @Lilyy_music_bot to a group with 10000+ members (and make bot Admin)
+  3. Add @Lilyy_music_bot to a group with 1000+ members (and make bot Admin)
   4. Join @i_mikoo (Updates Channel)
   5. Join @titanic_network (Network Channel)
 
 User Commands:
   /join_giveaway (or /gjoin)       — Open giveaway panel with live tasks (works in every group and DM)
   /gcheck                          — Re-check task status / open giveaway panel
-  /gwgroup <@group or ID>          — Verify 1000+ / 10000+ member groups with bot admins (works in DM & groups)
+  /gwgroup <@group or ID>          — Verify 1000+ member groups with bot admins (works in DM & groups)
 
 Admin Commands:
   /giveaway create [p1 | p2]       — Start 7-day giveaway in group or global
@@ -72,7 +72,7 @@ NOAH_BOT_USERNAME = "noahsongbot"
 LILYY_BOT_USERNAME = "Lilyy_music_bot"
 
 MIN_GROUP_MEMBERS = 1000
-MIN_LILYY_GROUP_MEMBERS = 10000
+MIN_LILYY_GROUP_MEMBERS = 1000
 GIVEAWAY_DURATION_DAYS = 7
 
 # ─── Default Prizes & Links ──────────────────────────────────────────────────
@@ -372,9 +372,9 @@ async def _verify_group_for_user(
 ) -> Tuple[bool, str]:
     """
     Verifies that:
-      1. Group exists and can be inspected.
-      2. For Tasks 1 & 2: Group has >= 1,000 members and @i_mikobot & @noahsongbot are Admins.
-      3. For Task 3: Group has >= 10,000 members and @Lilyy_music_bot is Admin.
+      1. Group exists and has >= 1000 members.
+      2. Checks if @i_mikobot, @noahsongbot, or @Lilyy_music_bot are Admins.
+      3. The user is a member/admin in the group.
     """
     raw = str(group_input).strip()
     for prefix in ("https://t.me/", "http://t.me/", "t.me/"):
@@ -402,11 +402,18 @@ async def _verify_group_for_user(
     if chat.type not in ("group", "supergroup"):
         return False, f"❌ <b>{html.escape(chat.title or 'This chat')}</b> is not a group/supergroup!"
 
-    # 1. Member count check
+    # 1. Member count check (>= 1000)
     try:
         count = await bot.get_chat_member_count(chat.id)
     except Exception:
         count = 0
+
+    if count < MIN_GROUP_MEMBERS:
+        return (
+            False,
+            f"❌ Group <b>{html.escape(chat.title)}</b> has only <b>{count:,} members</b>.\n"
+            f"Required: At least <b>{MIN_GROUP_MEMBERS:,} members</b>!",
+        )
 
     # 2. Administrator checks
     try:
@@ -415,7 +422,7 @@ async def _verify_group_for_user(
         return (
             False,
             f"❌ Cannot read admin list for <b>{html.escape(chat.title)}</b>.\n"
-            f"Make sure <b>@{MIKO_BOT_USERNAME}</b> is promoted to <b>Admin</b>!",
+            f"Make sure bot is promoted to <b>Admin</b>!",
         )
 
     miko_admin = any(a.user.id == bot.id for a in admins)
@@ -430,29 +437,24 @@ async def _verify_group_for_user(
 
     tdata = _get_user_task(user_id, giveaway_chat_id)
     verified_any = False
-    details = []
 
-    # Verify 1000+ member group with @i_mikobot & @noahsongbot
-    if count >= MIN_GROUP_MEMBERS:
-        if miko_admin:
-            tdata["miko_added"] = True
-            verified_any = True
-        if noah_admin:
-            tdata["noah_added"] = True
-            verified_any = True
-        if miko_admin or noah_admin:
-            tdata["verified_group_id"] = chat.id
-            tdata["verified_group_title"] = chat.title
-            tdata["verified_member_count"] = count
+    if miko_admin:
+        tdata["miko_added"] = True
+        verified_any = True
+    if noah_admin:
+        tdata["noah_added"] = True
+        verified_any = True
+    if miko_admin or noah_admin:
+        tdata["verified_group_id"] = chat.id
+        tdata["verified_group_title"] = chat.title
+        tdata["verified_member_count"] = count
 
-    # Verify 10000+ member group with @Lilyy_music_bot
-    if count >= MIN_LILYY_GROUP_MEMBERS:
-        if lilyy_admin:
-            tdata["lilyy_added"] = True
-            tdata["verified_lilyy_group_id"] = chat.id
-            tdata["verified_lilyy_group_title"] = chat.title
-            tdata["verified_lilyy_member_count"] = count
-            verified_any = True
+    if lilyy_admin:
+        tdata["lilyy_added"] = True
+        tdata["verified_lilyy_group_id"] = chat.id
+        tdata["verified_lilyy_group_title"] = chat.title
+        tdata["verified_lilyy_member_count"] = count
+        verified_any = True
 
     _set_user_task(user_id, giveaway_chat_id, tdata)
 
@@ -464,20 +466,14 @@ async def _verify_group_for_user(
         f"<b>Group Admin Status:</b>",
         f"{tick(miko_admin)} <b>@{MIKO_BOT_USERNAME}:</b> Admin (Req: 1,000+ members)",
         f"{tick(noah_admin)} <b>@{NOAH_BOT_USERNAME}:</b> Admin (Req: 1,000+ members)",
-        f"{tick(lilyy_admin)} <b>@{LILYY_BOT_USERNAME}:</b> Admin (Req: 10,000+ members)\n",
+        f"{tick(lilyy_admin)} <b>@{LILYY_BOT_USERNAME}:</b> Admin (Req: 1,000+ members)\n",
     ]
-
-    if count < MIN_GROUP_MEMBERS:
-        res_lines.append(f"⚠️ Group has {count:,} members. Minimum required is 1,000+ members (and 10,000+ for @{LILYY_BOT_USERNAME}).")
-    elif count < MIN_LILYY_GROUP_MEMBERS:
-        if lilyy_admin:
-            res_lines.append(f"⚠️ Note: Group has {count:,} members. @{LILYY_BOT_USERNAME} requires a group with <b>10,000+ members</b>!")
 
     if verified_any:
         res_lines.append("✨ Task progress has been updated!")
         return True, "\n".join(res_lines)
     else:
-        res_lines.append("❌ No new tasks could be verified for this group.")
+        res_lines.append("❌ None of the required giveaway bots were found as Administrator in this group.")
         return False, "\n".join(res_lines)
 
 
@@ -546,7 +542,7 @@ async def _send_giveaway_join_log(
             f"\n📋 <b>Verified Tasks:</b>\n"
             f"  ✅ 1,000+ Group: <b>{html.escape(str(group_name))}</b> (<code>{group_id}</code> | {group_count:,} members)\n"
             f"  ✅ Bots Promoted: @{MIKO_BOT_USERNAME} &amp; @{NOAH_BOT_USERNAME} (Admin)\n"
-            f"  ✅ 10,000+ Group: <b>{html.escape(str(lilyy_group_name))}</b> (<code>{lilyy_group_id}</code> | {lilyy_group_count:,} members)\n"
+            f"  ✅ 1,000+ Group: <b>{html.escape(str(lilyy_group_name))}</b> (<code>{lilyy_group_id}</code> | {lilyy_group_count:,} members)\n"
             f"  ✅ Bot Promoted: @{LILYY_BOT_USERNAME} (Admin)\n"
             f"  ✅ Updates Channel: {UPDATES_CHANNEL}\n"
             f"  ✅ Network Channel: {NETWORK_CHANNEL}\n\n"
@@ -652,6 +648,8 @@ def _tasks_text(
     lilyy_info = ""
     if tdata.get("verified_lilyy_group_title"):
         lilyy_info = f"\n   <i>(Verified: {html.escape(tdata['verified_lilyy_group_title'])})</i>"
+    elif tdata.get("verified_group_title") and tasks.get("lilyy_added"):
+        lilyy_info = f"\n   <i>(Verified: {html.escape(tdata['verified_group_title'])})</i>"
 
     all_done = all(tasks.values())
     status_hint = "✨ <b>All tasks complete! Tap Verify My Tasks &amp; Join!</b>" if all_done else "👉 <i>Complete all tasks and tap <b>Verify My Tasks &amp; Join</b>!</i>"
@@ -666,8 +664,8 @@ def _tasks_text(
         "━━━━━━━━━━━━━━━━━━━━\n"
         "📋 <b>REQUIRED TASKS TO JOIN:</b>\n\n"
         f"{tick(tasks['miko_added'])} 1️⃣ Add <b>@{MIKO_BOT_USERNAME}</b> to a group with <b>1,000+ members</b> (Admin){group_info}\n"
-        f"{tick(tasks['noah_added'])} 2️⃣ Add <b>@{NOAH_BOT_USERNAME}</b> to a group with <b>1,000+ members</b> (Admin)\n"
-        f"{tick(tasks['lilyy_added'])} 3️⃣ Add <b>@{LILYY_BOT_USERNAME}</b> to a group with <b>10,000+ members</b> (Admin){lilyy_info}\n"
+        f"{tick(tasks['noah_added'])} 2️⃣ Add <b>@{NOAH_BOT_USERNAME}</b> to a group with <b>1,000+ members</b> (Admin){group_info}\n"
+        f"{tick(tasks['lilyy_added'])} 3️⃣ Add <b>@{LILYY_BOT_USERNAME}</b> to a group with <b>1,000+ members</b> (Admin){lilyy_info}\n"
         f"{tick(tasks['updates'])} 4️⃣ Join <b>{UPDATES_CHANNEL}</b> (Updates Channel)\n"
         f"{tick(tasks['network'])} 5️⃣ Join <b>{NETWORK_CHANNEL}</b> (Network Channel)\n"
         "━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -937,8 +935,8 @@ async def cmd_gwgroup(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "📋 <b>Group Verification Usage:</b>\n\n"
             "<code>/gwgroup @yourgroup</code>\n\n"
             "• Replace <code>@yourgroup</code> with your group's @username or Chat ID\n"
-            "• For Tasks 1 &amp; 2: Group must have at least <b>1,000 members</b> with <b>@i_mikobot</b> &amp; <b>@noahsongbot</b> as Admins\n"
-            f"• For Task 3: Group must have at least <b>10,000 members</b> with <b>@{LILYY_BOT_USERNAME}</b> as Admin\n\n"
+            "• Make sure the group has at least <b>1,000 members</b>\n"
+            f"• Promote <b>@{MIKO_BOT_USERNAME}</b>, <b>@{NOAH_BOT_USERNAME}</b>, or <b>@{LILYY_BOT_USERNAME}</b> as Admins\n\n"
             "💡 <i>Or send <code>/gwgroup</code> directly inside that group!</i>",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("💬 Open in DM", url=f"https://t.me/{bot_username}?start=gwgroup")]
@@ -1100,7 +1098,8 @@ async def giveaway_callback_handler(update: Update, context: ContextTypes.DEFAUL
         instructions = (
             "💬 <b>Group Verification Instructions:</b>\n\n"
             f"1️⃣ Add <b>@{MIKO_BOT_USERNAME}</b> and <b>@{NOAH_BOT_USERNAME}</b> to a group with <b>1,000+ members</b> (Admin)\n"
-            f"2️⃣ Add <b>@{LILYY_BOT_USERNAME}</b> to a group with <b>10,000+ members</b> (Admin)\n"
+            f"2️⃣ Add <b>@{LILYY_BOT_USERNAME}</b> to a group with <b>1,000+ members</b> (Admin)\n"
+            "<i>(Or add all 3 bots to the same 1,000+ member group!)</i>\n\n"
             "3️⃣ Send this command here (or inside that group):\n"
             "<code>/gwgroup @yourgroup</code>\n\n"
             "<i>(Replace <code>@yourgroup</code> with your group's @username or Chat ID)</i>"
@@ -1186,7 +1185,7 @@ async def giveaway_callback_handler(update: Update, context: ContextTypes.DEFAUL
             if not tasks["miko_added"] or not tasks["noah_added"]:
                 missing.append("• 1,000+ Member Group with @i_mikobot & @noahsongbot as Admins (use /gwgroup @group)")
             if not tasks["lilyy_added"]:
-                missing.append(f"• 10,000+ Member Group with @{LILYY_BOT_USERNAME} as Admin (use /gwgroup @group)")
+                missing.append(f"• 1,000+ Member Group with @{LILYY_BOT_USERNAME} as Admin (use /gwgroup @group)")
             if not tasks["updates"]:
                 missing.append(f"• Join {UPDATES_CHANNEL} Updates Channel")
             if not tasks["network"]:
@@ -1358,7 +1357,7 @@ async def cmd_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "📋 <b>Tasks to Qualify:</b>\n"
             f"1️⃣ Add <b>@{MIKO_BOT_USERNAME}</b> to a group with <b>1,000+ members</b> (Admin)\n"
             f"2️⃣ Add <b>@{NOAH_BOT_USERNAME}</b> to a group with <b>1,000+ members</b> (Admin)\n"
-            f"3️⃣ Add <b>@{LILYY_BOT_USERNAME}</b> to a group with <b>10,000+ members</b> (Admin)\n"
+            f"3️⃣ Add <b>@{LILYY_BOT_USERNAME}</b> to a group with <b>1,000+ members</b> (Admin)\n"
             f"4️⃣ Join <b>{UPDATES_CHANNEL}</b> (Updates Channel)\n"
             f"5️⃣ Join <b>{NETWORK_CHANNEL}</b>\n\n"
             "✨ Send <code>/join_giveaway</code> to complete tasks and enroll!"
