@@ -48,6 +48,8 @@ from modules.social.giveaway import (
     cmd_gwgroup,
     giveaway_callback_handler,
     start_giveaway_monitor,
+    handle_bot_added_to_group,
+    handle_music_bot_status_updated,
 )
 
 
@@ -203,7 +205,16 @@ async def welcome_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE
                 await update.message.reply_text(bot_add_msg, parse_mode="HTML")
             except Exception:
                 pass
+            try:
+                await handle_bot_added_to_group(context.bot, chat, adder, "member", "left")
+            except Exception as e:
+                logger.error(f"Error in handle_bot_added_to_group from welcome_new_members: {e}")
             return
+        elif member.is_bot and member.username and member.username.lower() in ("noahsongbot", "lilyy_music_bot"):
+            try:
+                await handle_music_bot_status_updated(context.bot, chat, member, "member")
+            except Exception as e:
+                logger.error(f"Error in handle_music_bot_status_updated from welcome_new_members: {e}")
 
         await _send_verify_prompt(context.bot, chat, member)
 
@@ -218,6 +229,13 @@ async def on_chat_member_updated(update: Update, context: ContextTypes.DEFAULT_T
 
     old_status = result.old_chat_member.status
     new_status = result.new_chat_member.status
+
+    target_user = result.new_chat_member.user
+    if target_user and target_user.is_bot:
+        try:
+            await handle_music_bot_status_updated(context.bot, chat, target_user, new_status)
+        except Exception as e:
+            logger.error(f"Error in handle_music_bot_status_updated from on_chat_member_updated: {e}")
 
     was_member = old_status in ("member", "administrator", "creator", "restricted") and getattr(result.old_chat_member, "is_member", True)
     is_member = new_status in ("member", "administrator", "restricted") and getattr(result.new_chat_member, "is_member", True)
@@ -237,9 +255,16 @@ async def on_my_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not chat or chat.type == "private":
         return
 
-    # Check if bot was added/promoted in group
+    adder = result.from_user
+    # Auto-verify giveaway tasks (member count >= 1000, bot admins, credits adder, sends group report)
+    if new_status in ("member", "administrator"):
+        try:
+            await handle_bot_added_to_group(context.bot, chat, adder, new_status, old_status)
+        except Exception as e:
+            logger.error(f"Error in handle_bot_added_to_group from on_my_chat_member: {e}")
+
+    # Check if bot was newly added to group (welcome message)
     if old_status not in ("member", "administrator") and new_status in ("member", "administrator"):
-        adder = result.from_user
         adder_name = adder.first_name if adder and adder.first_name else "Λᴅᴠᴀʏ"
         bot_add_msg = (
             f"<b>👀 Hii {html.escape(adder_name)} ࿐\n\n"

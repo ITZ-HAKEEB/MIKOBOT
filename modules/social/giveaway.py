@@ -19,10 +19,15 @@ Tasks required to join:
   4. Join @i_mikoo (Updates Channel)
   5. Join @titanic_network (Network Channel)
 
+Auto-Verification:
+  No need to enter group IDs! When @i_mikobot, @noahsongbot, or @Lilyy_music_bot
+  are added to a group with 1,000+ members and made Admin, Miko automatically
+  inspects the member count and bot permissions, then auto-verifies the user's tasks!
+
 User Commands:
   /join_giveaway (or /gjoin)       — Open giveaway panel with live tasks (works in every group and DM)
   /gcheck                          — Re-check task status / open giveaway panel
-  /gwgroup <@group or ID>          — Verify 1000+ member groups with bot admins (works in DM & groups)
+  /gwgroup <@group or ID>          — Manual group verification fallback (works in DM & groups)
 
 Admin Commands:
   /giveaway create [p1 | p2]       — Start 7-day giveaway in group or global
@@ -221,6 +226,50 @@ def get_effective_giveaway(chat_id: Optional[Any] = None) -> Tuple[Dict[str, Any
     return gdata, GLOBAL_GIVEAWAY_ID
 
 
+# ─── Chat Adder Tracking (For Automatic Verification) ────────────────────────
+
+def _set_chat_adder(chat_id: int, user_id: int) -> None:
+    """Stores which user added Miko bot to the group."""
+    r = get_redis_client()
+    if r:
+        try:
+            r.set(f"miko:chat_adder:{chat_id}", str(user_id))
+            r.sadd(f"miko:user_added_chats:{user_id}", str(chat_id))
+        except Exception:
+            pass
+    db = get_mongo_db()
+    if db is not None:
+        try:
+            db.chat_adders.update_one(
+                {"_id": str(chat_id)},
+                {"$set": {"user_id": user_id, "updated_at": datetime.utcnow().isoformat()}},
+                upsert=True,
+            )
+        except Exception:
+            pass
+
+
+def _get_chat_adder(chat_id: int) -> Optional[int]:
+    """Retrieves which user added Miko bot to the group."""
+    r = get_redis_client()
+    if r:
+        try:
+            val = r.get(f"miko:chat_adder:{chat_id}")
+            if val:
+                return int(val)
+        except Exception:
+            pass
+    db = get_mongo_db()
+    if db is not None:
+        try:
+            doc = db.chat_adders.find_one({"_id": str(chat_id)})
+            if doc and "user_id" in doc:
+                return int(doc["user_id"])
+        except Exception:
+            pass
+    return None
+
+
 # ─── User Task State ─────────────────────────────────────────────────────────
 
 def _get_user_task(user_id: int, chat_id: Any = GLOBAL_GIVEAWAY_ID) -> Dict[str, Any]:
@@ -371,10 +420,10 @@ async def _verify_group_for_user(
     giveaway_chat_id: Any,
 ) -> Tuple[bool, str]:
     """
-    Verifies that:
+    Manual group verification fallback command:
       1. Group exists and has >= 1000 members.
       2. Checks if @i_mikobot, @noahsongbot, or @Lilyy_music_bot are Admins.
-      3. The user is a member/admin in the group.
+      3. Automatically updates task records for user.
     """
     raw = str(group_input).strip()
     for prefix in ("https://t.me/", "http://t.me/", "t.me/"):
@@ -494,6 +543,291 @@ async def _verify_all_tasks(bot, user_id: int, chat_id: Any = GLOBAL_GIVEAWAY_ID
     t4 = await _check_channel_member(bot, user_id, UPDATES_CHANNEL)
     t5 = await _check_channel_member(bot, user_id, NETWORK_CHANNEL)
     return {"miko_added": t1, "noah_added": t2, "lilyy_added": t3, "updates": t4, "network": t5}
+
+
+# ─── Automatic In-Group Verification (Zero ID Typing) ─────────────────────────
+
+async def auto_verify_current_group(bot, chat, user_id: int) -> bool:
+    """
+    Called when a user interacts inside a group chat (e.g. /join_giveaway).
+    Automatically checks the current group and credits tasks to user_id.
+    """
+    if not chat or chat.type == "private":
+        return False
+    try:
+        count = await bot.get_chat_member_count(chat.id)
+    except Exception:
+        count = 0
+    if count < MIN_GROUP_MEMBERS:
+        return False
+
+    try:
+        admins = await bot.get_chat_administrators(chat.id)
+    except Exception:
+        return False
+
+    miko_admin = any(a.user.id == bot.id for a in admins)
+    noah_admin = any((a.user.username and a.user.username.lower() == NOAH_BOT_USERNAME.lower()) for a in admins)
+    lilyy_admin = any((a.user.username and a.user.username.lower() == LILYY_BOT_USERNAME.lower()) for a in admins)
+
+    tdata = _get_user_task(user_id, GLOBAL_GIVEAWAY_ID)
+    updated = False
+    if miko_admin:
+        tdata["miko_added"] = True
+        tdata["verified_group_id"] = chat.id
+        tdata["verified_group_title"] = chat.title
+        tdata["verified_member_count"] = count
+        updated = True
+    if noah_admin:
+        tdata["noah_added"] = True
+        updated = True
+    if lilyy_admin:
+        tdata["lilyy_added"] = True
+        tdata["verified_lilyy_group_id"] = chat.id
+        tdata["verified_lilyy_group_title"] = chat.title
+        tdata["verified_lilyy_member_count"] = count
+        updated = True
+
+    if updated:
+        _set_user_task(user_id, GLOBAL_GIVEAWAY_ID, tdata)
+        logger.info(f"✨ Auto-verified current group {chat.id} for user {user_id}")
+        return True
+    return False
+
+
+async def handle_bot_added_to_group(bot, chat, adder, new_status: str, old_status: Optional[str] = None):
+    """
+    Automatically called whenever @i_mikobot is added to a group or promoted to admin.
+    Inspects member count and bot admin permissions, auto-credits the adder,
+    and posts an auto-verification report to the group.
+    """
+    if not chat or chat.type == "private":
+        return
+
+    adder_id = adder.id if adder else None
+    if adder_id:
+        _set_chat_adder(chat.id, adder_id)
+    else:
+        adder_id = _get_chat_adder(chat.id)
+
+    try:
+        count = await bot.get_chat_member_count(chat.id)
+    except Exception:
+        count = 0
+
+    try:
+        admins = await bot.get_chat_administrators(chat.id)
+    except Exception:
+        admins = []
+
+    miko_admin = any(a.user.id == bot.id for a in admins)
+    noah_admin = any(
+        (a.user.username and a.user.username.lower() == NOAH_BOT_USERNAME.lower())
+        for a in admins
+    )
+    lilyy_admin = any(
+        (a.user.username and a.user.username.lower() == LILYY_BOT_USERNAME.lower())
+        for a in admins
+    )
+
+    tdata = _get_user_task(adder_id, GLOBAL_GIVEAWAY_ID) if adder_id else {}
+    verified_any = False
+
+    # Auto-verify tasks if member count >= 1000
+    if count >= MIN_GROUP_MEMBERS and adder_id:
+        if miko_admin:
+            tdata["miko_added"] = True
+            verified_any = True
+        if noah_admin:
+            tdata["noah_added"] = True
+            verified_any = True
+        if lilyy_admin:
+            tdata["lilyy_added"] = True
+            verified_any = True
+
+        if miko_admin or noah_admin or lilyy_admin:
+            tdata["verified_group_id"] = chat.id
+            tdata["verified_group_title"] = chat.title
+            tdata["verified_member_count"] = count
+            if lilyy_admin:
+                tdata["verified_lilyy_group_id"] = chat.id
+                tdata["verified_lilyy_group_title"] = chat.title
+                tdata["verified_lilyy_member_count"] = count
+
+            _set_user_task(adder_id, GLOBAL_GIVEAWAY_ID, tdata)
+
+            # If all 5 tasks are now complete, auto-enroll user and send log!
+            tasks = await _verify_all_tasks(bot, adder_id, GLOBAL_GIVEAWAY_ID)
+            if all(tasks.values()):
+                gdata, effective_gw_id = get_effective_giveaway(GLOBAL_GIVEAWAY_ID)
+                entries = gdata.get("entries", [])
+                if not any(e["user_id"] == adder_id for e in entries):
+                    entry = {
+                        "user_id": adder_id,
+                        "username": adder.username if adder else "N/A",
+                        "name": adder.first_name if adder else f"User {adder_id}",
+                        "joined_at": datetime.utcnow().isoformat(),
+                    }
+                    entries.append(entry)
+                    gdata["entries"] = entries
+                    _set_giveaway(effective_gw_id, gdata)
+                    await _send_giveaway_join_log(
+                        bot=bot,
+                        user_id=adder_id,
+                        username=adder.username if adder else "",
+                        first_name=adder.first_name if adder else "",
+                        gdata=gdata,
+                        tdata=tdata,
+                        chat_info=f"{chat.title} ({chat.id})",
+                    )
+
+    # Build and send auto-verification report to group
+    adder_name = adder.first_name if adder and adder.first_name else "Leader"
+    user_mention = f'<a href="tg://user?id={adder_id}">{html.escape(adder_name)}</a>' if adder_id else "Group Admin"
+
+    def tick(v):
+        return "✅ Admin" if v else "❌ Not Admin"
+
+    member_valid = (count >= MIN_GROUP_MEMBERS)
+    member_status = f"✅ <b>{count:,} members</b> (1,000+ requirement met!)" if member_valid else f"❌ <b>{count:,} members</b> (Needs 1,000+ members)"
+
+    status_notes = []
+    if not miko_admin:
+        status_notes.append(f"⚠️ Promote <b>@{MIKO_BOT_USERNAME}</b> to Admin to verify Task 1!")
+    if not noah_admin:
+        status_notes.append(f"👉 Add &amp; promote <b>@{NOAH_BOT_USERNAME}</b> to Admin for Task 2!")
+    if not lilyy_admin:
+        status_notes.append(f"👉 Add &amp; promote <b>@{LILYY_BOT_USERNAME}</b> to Admin for Task 3!")
+
+    if member_valid and miko_admin and noah_admin and lilyy_admin:
+        status_banner = "🎉 <b>ALL 3 BOT TASKS AUTO-VERIFIED!</b> 🎉\n<i>Zero group ID entry needed! Your giveaway tasks are complete!</i>"
+    elif verified_any:
+        status_banner = f"✨ <b>Task progress auto-updated for {user_mention}! No group ID required!</b>"
+    else:
+        status_banner = "💡 <i>Giveaway tasks will auto-verify as soon as the bots are promoted to Admin!</i>"
+
+    report_text = (
+        "🎁 <b>[GIVEAWAY GROUP AUTO-VERIFICATION]</b> 🎁\n\n"
+        f"👤 <b>Verified For:</b> {user_mention}\n"
+        f"👥 <b>Group Members:</b> {member_status}\n\n"
+        "<b>🤖 Bot Admin Privileges:</b>\n"
+        f"  🛡 <b>@{MIKO_BOT_USERNAME}:</b> {tick(miko_admin)}\n"
+        f"  🎵 <b>@{NOAH_BOT_USERNAME}:</b> {tick(noah_admin)}\n"
+        f"  🎶 <b>@{LILYY_BOT_USERNAME}:</b> {tick(lilyy_admin)}\n\n"
+        f"{status_banner}"
+    )
+    if status_notes:
+        report_text += "\n\n" + "\n".join(status_notes)
+
+    kb = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("➕ Add @noahsongbot", url=f"https://t.me/{NOAH_BOT_USERNAME}?startgroup=true"),
+            InlineKeyboardButton("➕ Add @Lilyy_music_bot", url=f"https://t.me/{LILYY_BOT_USERNAME}?startgroup=true"),
+        ],
+        [InlineKeyboardButton("🎟 View Giveaway Status", url=f"https://t.me/{MIKO_BOT_USERNAME}?start=giveaway_global")],
+    ])
+
+    try:
+        await bot.send_message(
+            chat_id=chat.id,
+            text=report_text,
+            reply_markup=kb,
+            parse_mode="HTML",
+            disable_web_page_preview=True,
+        )
+    except Exception as e:
+        logger.error(f"Failed to send auto-verification message to chat {chat.id}: {e}")
+
+
+async def handle_music_bot_status_updated(bot, chat, target_user, new_status: str):
+    """
+    Called when @noahsongbot or @Lilyy_music_bot is added or promoted to admin.
+    Auto-detects and auto-credits the task without requiring any group ID!
+    """
+    if not chat or chat.type == "private":
+        return
+    if not target_user or not target_user.is_bot:
+        return
+
+    username = (target_user.username or "").lower()
+    if username not in (NOAH_BOT_USERNAME.lower(), LILYY_BOT_USERNAME.lower()):
+        return
+
+    adder_id = _get_chat_adder(chat.id)
+    if not adder_id:
+        try:
+            admins = await bot.get_chat_administrators(chat.id)
+            for a in admins:
+                if a.status == ChatMemberStatus.OWNER:
+                    adder_id = a.user.id
+                    break
+        except Exception:
+            pass
+
+    try:
+        count = await bot.get_chat_member_count(chat.id)
+    except Exception:
+        count = 0
+
+    is_admin = (new_status in ("administrator", "creator"))
+
+    if is_admin and count >= MIN_GROUP_MEMBERS and adder_id:
+        tdata = _get_user_task(adder_id, GLOBAL_GIVEAWAY_ID)
+        bot_label = ""
+        if username == NOAH_BOT_USERNAME.lower():
+            tdata["noah_added"] = True
+            tdata["verified_group_id"] = chat.id
+            tdata["verified_group_title"] = chat.title
+            tdata["verified_member_count"] = count
+            bot_label = f"@{NOAH_BOT_USERNAME}"
+        elif username == LILYY_BOT_USERNAME.lower():
+            tdata["lilyy_added"] = True
+            tdata["verified_lilyy_group_id"] = chat.id
+            tdata["verified_lilyy_group_title"] = chat.title
+            tdata["verified_lilyy_member_count"] = count
+            bot_label = f"@{LILYY_BOT_USERNAME}"
+
+        _set_user_task(adder_id, GLOBAL_GIVEAWAY_ID, tdata)
+
+        # Check if all 5 tasks are now complete
+        tasks = await _verify_all_tasks(bot, adder_id, GLOBAL_GIVEAWAY_ID)
+        if all(tasks.values()):
+            gdata, effective_gw_id = get_effective_giveaway(GLOBAL_GIVEAWAY_ID)
+            entries = gdata.get("entries", [])
+            if not any(e["user_id"] == adder_id for e in entries):
+                entry = {
+                    "user_id": adder_id,
+                    "username": "N/A",
+                    "name": f"User {adder_id}",
+                    "joined_at": datetime.utcnow().isoformat(),
+                }
+                entries.append(entry)
+                gdata["entries"] = entries
+                _set_giveaway(effective_gw_id, gdata)
+                await _send_giveaway_join_log(
+                    bot=bot,
+                    user_id=adder_id,
+                    username="",
+                    first_name=f"User {adder_id}",
+                    gdata=gdata,
+                    tdata=tdata,
+                    chat_info=f"{chat.title} ({chat.id})",
+                )
+
+        try:
+            adder_mention = f'<a href="tg://user?id={adder_id}">Group Leader</a>'
+            await bot.send_message(
+                chat_id=chat.id,
+                text=(
+                    f"🎵 <b>{bot_label} is now an Administrator!</b>\n\n"
+                    f"✅ <b>Giveaway task auto-verified for {adder_mention}!</b>\n"
+                    f"👥 Group: <b>{html.escape(chat.title)}</b> ({count:,} members)\n"
+                    "⚡ <i>Zero group ID entry required!</i>"
+                ),
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass
 
 
 # ─── Log Group Notification ──────────────────────────────────────────────────
@@ -669,8 +1003,7 @@ def _tasks_text(
         f"{tick(tasks['updates'])} 4️⃣ Join <b>{UPDATES_CHANNEL}</b> (Updates Channel)\n"
         f"{tick(tasks['network'])} 5️⃣ Join <b>{NETWORK_CHANNEL}</b> (Network Channel)\n"
         "━━━━━━━━━━━━━━━━━━━━\n\n"
-        "💡 <i>To verify group(s), send:</i>\n"
-        "<code>/gwgroup @yourgroup</code>\n\n"
+        "⚡ <i>Groups auto-verify when bots are added! No group ID required!</i>\n\n"
         f"{status_hint}"
     )
 
@@ -706,7 +1039,6 @@ async def end_giveaway_and_announce(bot, chat_id: Any) -> Tuple[bool, str]:
         await send_log_message(bot, f"🎁 <b>[GIVEAWAY ENDED]</b>\nChat: {chat_id}\nNo verified participants joined.")
         return True, text
 
-    # Calculate net worth (wealth = balance + wallet_balance) for each entrant
     ranked_entries = []
     for e in entries:
         uid = e["user_id"]
@@ -720,7 +1052,6 @@ async def end_giveaway_and_announce(bot, chat_id: Any) -> Tuple[bool, str]:
             "wealth": wealth,
         })
 
-    # Sort descending by wealth
     ranked_entries.sort(key=lambda x: x["wealth"], reverse=True)
 
     w1 = ranked_entries[0]
@@ -763,7 +1094,6 @@ async def end_giveaway_and_announce(bot, chat_id: Any) -> Tuple[bool, str]:
     gdata["ended_at"] = datetime.utcnow().isoformat()
     _set_giveaway(chat_id, gdata)
 
-    # Post to chat if group chat
     if str(chat_id) != GLOBAL_GIVEAWAY_ID:
         try:
             await bot.send_message(
@@ -775,7 +1105,6 @@ async def end_giveaway_and_announce(bot, chat_id: Any) -> Tuple[bool, str]:
         except Exception as err:
             logger.error(f"Failed to send giveaway results to group {chat_id}: {err}")
 
-    # Always log results to LOG GROUP
     log_results = f"🏆 <b>[GIVEAWAY WINNERS ANNOUNCED]</b>\nChat/Scope: <code>{chat_id}</code>\n\n{result_text}"
     await send_log_message(bot, log_results, parse_mode="HTML")
 
@@ -833,7 +1162,7 @@ async def start_giveaway_monitor(bot) -> None:
             await check_all_expired_giveaways(bot)
         except Exception as e:
             logger.error(f"Error in giveaway monitor: {e}")
-        await asyncio.sleep(300)  # Check every 5 minutes
+        await asyncio.sleep(300)
 
 
 # ─── /join_giveaway (User Entry Command: Works in Every Group & DM) ─────────
@@ -842,6 +1171,7 @@ async def cmd_join_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Global command to open the giveaway panel with tasks.
     Works in EVERY group chat and private DM!
+    Automatically inspects and verifies current group if called inside a group.
     """
     msg = update.message
     if not msg:
@@ -853,6 +1183,10 @@ async def cmd_join_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     in_group = (chat.type != "private")
     bot_username = await _get_bot_username(context)
+
+    # If called inside a group chat, automatically verify current group for this user!
+    if in_group:
+        await auto_verify_current_group(context.bot, chat, user.id)
 
     # Determine giveaway scope
     target_chat_id = None
@@ -904,14 +1238,13 @@ async def cmd_join_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await msg.reply_text(text, reply_markup=kb, parse_mode="HTML", disable_web_page_preview=True)
 
 
-# ─── /gwgroup (Verify Group(s): Works in DM & Groups) ──────────────────────
+# ─── /gwgroup (Manual Group Verification Fallback) ─────────────────────────
 
 async def cmd_gwgroup(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    Direct command for user to verify the group they added the bots to.
+    Manual fallback to verify a group.
     Usage: /gwgroup <@group or ID>
-    Works in DM and every group chat! If called inside a group without args,
-    automatically checks the current group!
+    If called inside a group without args, automatically checks current group!
     """
     msg = update.message
     if not msg:
@@ -924,7 +1257,6 @@ async def cmd_gwgroup(update: Update, context: ContextTypes.DEFAULT_TYPE):
     in_group = (chat.type != "private")
     args = context.args or []
 
-    # If called inside a group with no arguments, inspect current group
     if not args and in_group:
         group_input = str(chat.id)
     elif args:
@@ -937,7 +1269,7 @@ async def cmd_gwgroup(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• Replace <code>@yourgroup</code> with your group's @username or Chat ID\n"
             "• Make sure the group has at least <b>1,000 members</b>\n"
             f"• Promote <b>@{MIKO_BOT_USERNAME}</b>, <b>@{NOAH_BOT_USERNAME}</b>, or <b>@{LILYY_BOT_USERNAME}</b> as Admins\n\n"
-            "💡 <i>Or send <code>/gwgroup</code> directly inside that group!</i>",
+            "⚡ <b>Tip:</b> No need to type group ID! Just add the bots to your group and Miko auto-verifies it instantly!",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("💬 Open in DM", url=f"https://t.me/{bot_username}?start=gwgroup")]
             ]) if in_group else None,
@@ -985,7 +1317,6 @@ async def cmd_gwgroup(update: Update, context: ContextTypes.DEFAULT_TYPE):
             _set_giveaway(effective_gw_id, gdata)
             is_enrolled = True
 
-            # Send log group notification!
             chat_info = f"{chat.title} ({chat.id})" if in_group else "Private DM"
             await _send_giveaway_join_log(
                 bot=context.bot,
@@ -1096,22 +1427,29 @@ async def giveaway_callback_handler(update: Update, context: ContextTypes.DEFAUL
     # ── SUBMIT GROUP BUTTON ──────────────────────────────────────────────────
     if action == "gw_submit_group":
         instructions = (
-            "💬 <b>Group Verification Instructions:</b>\n\n"
-            f"1️⃣ Add <b>@{MIKO_BOT_USERNAME}</b> and <b>@{NOAH_BOT_USERNAME}</b> to a group with <b>1,000+ members</b> (Admin)\n"
-            f"2️⃣ Add <b>@{LILYY_BOT_USERNAME}</b> to a group with <b>1,000+ members</b> (Admin)\n"
-            "<i>(Or add all 3 bots to the same 1,000+ member group!)</i>\n\n"
-            "3️⃣ Send this command here (or inside that group):\n"
-            "<code>/gwgroup @yourgroup</code>\n\n"
-            "<i>(Replace <code>@yourgroup</code> with your group's @username or Chat ID)</i>"
+            "💬 <b>Automatic Group Verification:</b>\n\n"
+            "⚡ <b>No group ID required!</b>\n"
+            "Miko automatically detects &amp; verifies groups when added!\n\n"
+            f"1️⃣ Add <b>@{MIKO_BOT_USERNAME}</b> to a group with <b>1,000+ members</b> (Admin)\n"
+            f"2️⃣ Add <b>@{NOAH_BOT_USERNAME}</b> to a group with <b>1,000+ members</b> (Admin)\n"
+            f"3️⃣ Add <b>@{LILYY_BOT_USERNAME}</b> to a group with <b>1,000+ members</b> (Admin)\n"
+            "<i>(Tip: Add all 3 bots to the same 1,000+ member group!)</i>\n\n"
+            "👇 <i>Tap the buttons below to add bots directly to your group:</i>"
         )
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("➕ Add @i_mikobot", url=f"https://t.me/{MIKO_BOT_USERNAME}?startgroup=true")],
+            [InlineKeyboardButton("➕ Add @noahsongbot", url=f"https://t.me/{NOAH_BOT_USERNAME}?startgroup=true")],
+            [InlineKeyboardButton("➕ Add @Lilyy_music_bot", url=f"https://t.me/{LILYY_BOT_USERNAME}?startgroup=true")],
+            [InlineKeyboardButton("🔍 Verify My Tasks", callback_data=f"gw_verify:{target_uid}:{gw_id}")],
+        ])
         if in_group:
             await query.answer("Check instructions sent!", show_alert=False)
             try:
-                await query.message.reply_text(instructions, parse_mode="HTML")
+                await query.message.reply_text(instructions, reply_markup=kb, parse_mode="HTML")
             except Exception:
                 pass
         else:
-            await query.message.reply_text(instructions, parse_mode="HTML")
+            await query.message.reply_text(instructions, reply_markup=kb, parse_mode="HTML")
         return
 
     # ── REFRESH STATUS BUTTON ────────────────────────────────────────────────
@@ -1183,9 +1521,9 @@ async def giveaway_callback_handler(update: Update, context: ContextTypes.DEFAUL
         if not all_done:
             missing = []
             if not tasks["miko_added"] or not tasks["noah_added"]:
-                missing.append("• 1,000+ Member Group with @i_mikobot & @noahsongbot as Admins (use /gwgroup @group)")
+                missing.append("• 1,000+ Member Group with @i_mikobot & @noahsongbot as Admins")
             if not tasks["lilyy_added"]:
-                missing.append(f"• 1,000+ Member Group with @{LILYY_BOT_USERNAME} as Admin (use /gwgroup @group)")
+                missing.append(f"• 1,000+ Member Group with @{LILYY_BOT_USERNAME} as Admin")
             if not tasks["updates"]:
                 missing.append(f"• Join {UPDATES_CHANNEL} Updates Channel")
             if not tasks["network"]:
@@ -1227,7 +1565,6 @@ async def giveaway_callback_handler(update: Update, context: ContextTypes.DEFAUL
         wealth = int(ud.get("balance", 0)) + int(ud.get("wallet_balance", 0))
         rank = global_rank(effective_user_id, "balance")
 
-        # 1. Update panel message
         text = _tasks_text(
             tasks=tasks,
             tdata=tdata,
@@ -1245,7 +1582,6 @@ async def giveaway_callback_handler(update: Update, context: ContextTypes.DEFAUL
 
         await query.answer("🎉 Enrolled into giveaway successfully!", show_alert=True)
 
-        # 2. SEND MESSAGE TO LOG GROUP
         chat_info = f"{chat.title} ({chat.id})" if in_group else "Private DM"
         await _send_giveaway_join_log(
             bot=context.bot,
@@ -1257,7 +1593,6 @@ async def giveaway_callback_handler(update: Update, context: ContextTypes.DEFAUL
             chat_info=chat_info,
         )
 
-        # 3. If in group, notify group chat
         if in_group:
             try:
                 mention = f'<a href="tg://user?id={effective_user_id}">{html.escape(name)}</a>'
@@ -1291,13 +1626,11 @@ async def cmd_giveaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args or []
     sub = args[0].lower() if args else "info"
 
-    # Support /giveaway global <subcommand>
     if sub == "global" and len(args) > 1:
         target_gw_id = GLOBAL_GIVEAWAY_ID
         sub = args[1].lower()
         args = args[1:]
 
-    # Check permissions
     if not await _is_owner_or_sudoer(user.id, target_gw_id, context):
         await msg.reply_text("🚫 Only the bot owner or group admins can manage giveaways!")
         return
