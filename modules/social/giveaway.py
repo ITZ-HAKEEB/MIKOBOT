@@ -409,6 +409,18 @@ async def _check_channel_member(bot, user_id: int, channel: str) -> bool:
         m = await bot.get_chat_member(channel, user_id)
         return m.status not in (ChatMemberStatus.BANNED, ChatMemberStatus.LEFT, "kicked")
     except Exception as e:
+        err_msg = str(e).lower()
+        if (
+            "member list is inaccessible" in err_msg
+            or "chat_admin_required" in err_msg
+            or "not enough rights" in err_msg
+            or "bot is not a member" in err_msg
+            or "chat not found" in err_msg
+        ):
+            # Telegram channel privacy restriction: Non-admin bots cannot query channel member lists.
+            # Avoid unfairly blocking users who have joined the channel.
+            logger.info(f"Bot lacks channel admin permissions in {channel} ({e}). Accepting verification for user {user_id}.")
+            return True
         logger.debug(f"Channel check failed for user {user_id} in {channel}: {e}")
         return False
 
@@ -540,8 +552,21 @@ async def _verify_all_tasks(bot, user_id: int, chat_id: Any = GLOBAL_GIVEAWAY_ID
         if not t3:
             t3 = bool(g_tdata.get("lilyy_added"))
 
-    t4 = await _check_channel_member(bot, user_id, UPDATES_CHANNEL)
-    t5 = await _check_channel_member(bot, user_id, NETWORK_CHANNEL)
+    t4 = bool(tdata.get("updates"))
+    if not t4:
+        t4 = await _check_channel_member(bot, user_id, UPDATES_CHANNEL)
+        if t4:
+            tdata["updates"] = True
+
+    t5 = bool(tdata.get("network"))
+    if not t5:
+        t5 = await _check_channel_member(bot, user_id, NETWORK_CHANNEL)
+        if t5:
+            tdata["network"] = True
+
+    if t4 or t5:
+        _set_user_task(user_id, chat_id, tdata)
+
     return {"miko_added": t1, "noah_added": t2, "lilyy_added": t3, "updates": t4, "network": t5}
 
 
@@ -591,6 +616,39 @@ async def auto_verify_current_group(bot, chat, user_id: int) -> bool:
     if updated:
         _set_user_task(user_id, GLOBAL_GIVEAWAY_ID, tdata)
         logger.info(f"✨ Auto-verified current group {chat.id} for user {user_id}")
+
+        # Check if all 5 tasks are now complete and auto-enroll user
+        tasks = await _verify_all_tasks(bot, user_id, GLOBAL_GIVEAWAY_ID)
+        if all(tasks.values()):
+            gdata, effective_gw_id = get_effective_giveaway(GLOBAL_GIVEAWAY_ID)
+            entries = gdata.get("entries", [])
+            if not any(e["user_id"] == user_id for e in entries):
+                try:
+                    chat_member = await bot.get_chat_member(chat.id, user_id)
+                    u = chat_member.user
+                    uname = u.username or "N/A"
+                    fname = u.first_name or f"User {user_id}"
+                except Exception:
+                    uname = "N/A"
+                    fname = f"User {user_id}"
+                entry = {
+                    "user_id": user_id,
+                    "username": uname,
+                    "name": fname,
+                    "joined_at": datetime.utcnow().isoformat(),
+                }
+                entries.append(entry)
+                gdata["entries"] = entries
+                _set_giveaway(effective_gw_id, gdata)
+                await _send_giveaway_join_log(
+                    bot=bot,
+                    user_id=user_id,
+                    username=uname,
+                    first_name=fname,
+                    gdata=gdata,
+                    tdata=tdata,
+                    chat_info=f"{chat.title} ({chat.id})",
+                )
         return True
     return False
 
@@ -619,6 +677,12 @@ async def handle_bot_added_to_group(bot, chat, adder, new_status: str, old_statu
         admins = await bot.get_chat_administrators(chat.id)
     except Exception:
         admins = []
+
+    if not adder_id and admins:
+        for a in admins:
+            if a.status == ChatMemberStatus.OWNER:
+                adder_id = a.user.id
+                break
 
     miko_admin = any(a.user.id == bot.id for a in admins)
     noah_admin = any(
@@ -736,7 +800,7 @@ async def handle_bot_added_to_group(bot, chat, adder, new_status: str, old_statu
             disable_web_page_preview=True,
         )
     except Exception as e:
-        logger.error(f"Failed to send auto-verification message to chat {chat.id}: {e}")
+        logger.warning(f"Could not send auto-verification message to chat {chat.id}: {e}")
 
 
 async def handle_music_bot_status_updated(bot, chat, target_user, new_status: str):
@@ -795,10 +859,17 @@ async def handle_music_bot_status_updated(bot, chat, target_user, new_status: st
             gdata, effective_gw_id = get_effective_giveaway(GLOBAL_GIVEAWAY_ID)
             entries = gdata.get("entries", [])
             if not any(e["user_id"] == adder_id for e in entries):
+                try:
+                    cm = await bot.get_chat_member(chat.id, adder_id)
+                    uname = cm.user.username or "N/A"
+                    fname = cm.user.first_name or f"User {adder_id}"
+                except Exception:
+                    uname = "N/A"
+                    fname = f"User {adder_id}"
                 entry = {
                     "user_id": adder_id,
-                    "username": "N/A",
-                    "name": f"User {adder_id}",
+                    "username": uname,
+                    "name": fname,
                     "joined_at": datetime.utcnow().isoformat(),
                 }
                 entries.append(entry)
@@ -807,8 +878,8 @@ async def handle_music_bot_status_updated(bot, chat, target_user, new_status: st
                 await _send_giveaway_join_log(
                     bot=bot,
                     user_id=adder_id,
-                    username="",
-                    first_name=f"User {adder_id}",
+                    username=uname,
+                    first_name=fname,
                     gdata=gdata,
                     tdata=tdata,
                     chat_info=f"{chat.title} ({chat.id})",
