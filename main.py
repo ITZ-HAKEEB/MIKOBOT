@@ -358,7 +358,7 @@ def _collect_handlers():
                     InlineKeyboardButton("🐻 ᴘʀᴏᴍᴏᴛᴇʀ", url="https://t.me/llNOBI_XDll"),
                 ],
                 [
-                    InlineKeyboardButton("📢 ᴜᴘᴅᴀᴛᴇꜱ", url="https://t.me/i_mikoo"),
+                    InlineKeyboardButton("📢 ᴜᴘᴅᴀᴛᴇꜱ", url="https://t.me/llNOBI_UPDATESll"),
                     InlineKeyboardButton("🎮 ɢᴀᴍᴇꜱ", callback_data="games"),
                 ],
                 [
