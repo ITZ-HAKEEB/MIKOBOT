@@ -229,8 +229,6 @@ async def on_my_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not chat or chat.type == "private":
         return
 
-    # The user who changed the bot's membership status is available on the update.
-    adder = result.from_user
     # Check if bot was newly added to group (welcome message)
     if old_status not in ("member", "administrator") and new_status in ("member", "administrator"):
         adder_name = adder.first_name if adder and adder.first_name else "ɴᴏʙɪ"
@@ -924,14 +922,7 @@ from modules.utils.db import warmup_redis_cache
 
 
 async def post_init(app):
-    # Redis is an optional cache: a Redis outage must not prevent the bot
-    # from starting when the main database and Telegram connection are OK.
-    try:
-        warmup_redis_cache()
-        print("✅ Redis cache warmup completed.")
-    except Exception as redis_error:
-        print(f"⚠️ Redis cache warmup skipped: {redis_error}")
-
+    warmup_redis_cache()
     try:
         cmds_to_set = BOT_COMMANDS[:100]
         await app.bot.set_my_commands(cmds_to_set)
