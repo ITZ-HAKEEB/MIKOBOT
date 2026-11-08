@@ -2,7 +2,7 @@
 
 An advanced, feature-rich Telegram bot featuring Economy, Mini-Games, AI DM Chatbot with Hinglish intelligence, Group Management, Sudoers system, and Dual-Layer Redis + MongoDB Cloud Storage.
 
-[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/nishkarshk212/Miko)
+[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/ITZ-HAKEEB/MIKOBOT)
 
 ---
 
@@ -22,7 +22,7 @@ An advanced, feature-rich Telegram bot featuring Economy, Mini-Games, AI DM Chat
 
 ### Option 1: One-Click Deploy Button
 Click the **Deploy to Heroku** button above or open:
-[https://heroku.com/deploy?template=https://github.com/nishkarshk212/Miko](https://heroku.com/deploy?template=https://github.com/nishkarshk212/Miko)
+[https://heroku.com/deploy?template=https://github.com/nishkarshk212/Miko](https://heroku.com/deploy?template=https://github.com/ITZ-HAKEEB/MIKOBOT)
 
 ### Option 2: Heroku CLI / Teams Deploy
 ```bash
