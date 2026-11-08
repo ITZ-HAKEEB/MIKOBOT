@@ -182,7 +182,7 @@ async def welcome_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     for member in new_members:
         if bot_id and member.id == bot_id:
-            adder_mention = adder.mention_html() if adder else "<b>Λᴅᴠᴀʏ</b>"
+            adder_mention = adder.mention_html() if adder else "<b>ɴᴏʙɪ</b>"
             bot_add_msg = (
                 f"<b>👀 Hii {adder_mention} ࿐\n\n"
                 "💓 Tʜᴀɴᴋꜱ Fᴏʀ Aᴅᴅɪɴɢ Mᴇ Iɴ Tʜɪꜱ Cʜᴀᴛ\n"
@@ -231,7 +231,7 @@ async def on_my_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Check if bot was newly added to group (welcome message)
     if old_status not in ("member", "administrator") and new_status in ("member", "administrator"):
-        adder_name = adder.first_name if adder and adder.first_name else "Λᴅᴠᴀʏ"
+        adder_name = adder.first_name if adder and adder.first_name else "ɴᴏʙɪ"
         bot_add_msg = (
             f"<b>👀 Hii {html.escape(adder_name)} ࿐\n\n"
             "💓 Tʜᴀɴᴋꜱ Fᴏʀ Aᴅᴅɪɴɢ Mᴇ Iɴ Tʜɪꜱ Cʜᴀᴛ\n"
@@ -355,7 +355,7 @@ def _collect_handlers():
                 [InlineKeyboardButton("🍀 ᴍɪᴋᴏ ꜰᴇᴀᴛᴜʀᴇꜱ", callback_data="miko_features")],
                 [
                     InlineKeyboardButton("👥 ɢʀᴏᴜᴘꜱ", callback_data="groups"),
-                    InlineKeyboardButton("🐻 ᴘʀᴏᴍᴏᴛᴇʀ", url="https://t.me/advaydev"),
+                    InlineKeyboardButton("🐻 ᴘʀᴏᴍᴏᴛᴇʀ", url="https://t.me/llNOBI_XDll"),
                 ],
                 [
                     InlineKeyboardButton("📢 ᴜᴘᴅᴀᴛᴇꜱ", url="https://t.me/i_mikoo"),
@@ -447,7 +447,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🍀 ᴍɪᴋᴏ ꜰᴇᴀᴛᴜʀᴇꜱ", callback_data="miko_features")],
             [
                 InlineKeyboardButton("👥 ɢʀᴏᴜᴘꜱ", callback_data="groups"),
-                InlineKeyboardButton("🐻 ᴘʀᴏᴍᴏᴛᴇʀ", url="https://t.me/advaydev"),
+                InlineKeyboardButton("🐻 ᴘʀᴏᴍᴏᴛᴇʀ", url="https://t.me/llNOBI_XDll"),
             ],
             [
                 InlineKeyboardButton("📢 ᴜᴘᴅᴀᴛᴇꜱ", url="https://t.me/i_mikoo"),
@@ -551,7 +551,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 user_notify = (
                     f"❌ <b>Fund Deposit Request Rejected</b>\n\n"
                     f"⚠️ Your deposit request of <b>₹{amount:,.2f} INR</b> was rejected by Admin.\n"
-                    f"If you already completed the payment, please contact @advaydev with proof."
+                    f"If you already completed the payment, please contact @llNOBI_XDll with proof."
                 )
                 await context.bot.send_message(chat_id=target_uid, text=user_notify, parse_mode="HTML")
             except Exception:
